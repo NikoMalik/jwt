@@ -17,4 +17,5 @@ var (
 	ErrInvalidSeed      = errors.New("invalid seed")
 	ErrInvalidKeySize   = errors.New("invalid key size")
 	ErrPointerToArray   = errors.New("pointer to array")
+    ErrCannotGetObjFromPool = errors.New("cannot get object from pool")
 )

@@ -1,9 +1,14 @@
 package jwt
 
+//RFC8032
+
 import (
 	"crypto/ed25519"
+	cryptorand "crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"io"
+	"reflect"
 	"unsafe"
 
 	lowlevelfunctions "github.com/NikoMalik/low-level-functions"
@@ -16,6 +21,10 @@ type KeySource interface {
 type _PrivateKey []byte
 
 type _PublicKey []byte
+
+var privateKeyPool = newObjPool[_PrivateKey](privateKeyLen, func() _PrivateKey {
+	return lowlevelfunctions.MakeNoZero(privateKeyLen)
+})
 
 const (
 	privateKeyLen = ed25519.PrivateKeySize // 64
@@ -30,14 +39,34 @@ type _EDDSA struct {
 	PublicKey  _PublicKey
 }
 
+func (e *_EDDSA) Reset() {
+	_ = e.PrivateKey[:0]
+}
+
+func (e *_EDDSA) Close() {
+	if len(e.PrivateKey) > 0 {
+		n := (*reflect.SliceHeader)(unsafe.Pointer(&e.PrivateKey))
+
+		if n.Data != 0 || n.Cap != 0 {
+			_ = e.PrivateKey[:0]             // Clear the private key (zero out)
+			privateKeyPool.put(e.PrivateKey) // Return the private key to the pool
+		}
+
+	}
+	return
+}
+
 func (e *_EDDSA) Bytes() _PrivateKey { return e.PrivateKey }
 
-func (e *_EDDSA) SignSize() int32 { return 64 }
+func (e *_EDDSA) SignSize() int { return len(e.PrivateKey) }
 
 func (e *_EDDSA) Algorithm() Algorithm { return EDDSA }
 
 func NewEDDSA[T KeySource](keySource T) (*_EDDSA, error) {
-	var privKey _PrivateKey = lowlevelfunctions.MakeNoZero(privateKeyLen)
+	var privKey _PrivateKey = privateKeyPool.get()
+	if privKey == nil || len(privKey) == 0 {
+		return nil, ErrCannotGetObjFromPool
+	}
 
 	switch v := any(keySource).(type) {
 
@@ -55,26 +84,26 @@ func NewEDDSA[T KeySource](keySource T) (*_EDDSA, error) {
 		}
 		if len(decoded) == privateKeyLen {
 			privKey = *(*_PrivateKey)(unsafe.Pointer(&decoded))
+
 		}
 
 		if len(decoded) == seedLen {
 
 			privKey = NewKeyFromSeed(decoded)
+
 		} else {
 			return nil, ErrInvalidKeySize
 		}
 
 	case []byte:
+
 		// Treat byte slice as a private key or seed based on length
 		if len(v) == privateKeyLen {
-			privKey = _PrivateKey(v[:])
-		}
-
-		if len(v) == seedLen {
-
+			privKey = *(*_PrivateKey)(unsafe.Pointer(&v))
+		} else if len(v) == seedLen {
 			privKey = NewKeyFromSeed(v)
 		} else {
-			return nil, ErrInvalidKeySize
+			return nil, fmt.Errorf("Invalid key length: %v", len(v))
 		}
 
 	case [privateKeyLen]byte:
@@ -100,6 +129,9 @@ func (e *_EDDSA) Sign(payload []byte) ([]byte, error) {
 	if len(payload) == 0 {
 		return nil, ErrPayloadIsEmpty
 	}
+	if e.PrivateKey == nil || len(e.PrivateKey) == 0 {
+		return nil, fmt.Errorf("private key is not initialized")
+	}
 	signature := Sign(e.PrivateKey, payload)
 
 	return signature, nil
@@ -108,8 +140,25 @@ func (e *_EDDSA) Verify(payload []byte, sig []byte) bool {
 	if payload == nil || len(payload) == 0 {
 		return false
 	}
-	if len(e.PublicKey) != publicKeyLen {
-		return false
+
+	return __Verify__(e.PublicKey, payload, sig)
+}
+
+func GenerateEDDSARandom(rand io.Reader) (_PrivateKey, error) {
+	if rand == nil {
+		rand = cryptorand.Reader
 	}
-	return __Verify__(e.PublicKey, payload, sig[:])
+
+	var seed [seedLen]byte
+	if _, err := io.ReadFull(rand, seed[:]); err != nil {
+		return nil, err
+	}
+
+	privateKey := NewKeyFromSeed(seed[:])
+	return privateKey, nil
+
+}
+
+func (p _PrivateKey) Bytes() []byte {
+	return *(*[]byte)(unsafe.Pointer(&p))
 }
