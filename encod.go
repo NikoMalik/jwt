@@ -39,7 +39,6 @@ import (
 	"hash"
 	"io"
 	"strconv"
-	"unsafe"
 
 	cryptorand "crypto/rand"
 
@@ -61,35 +60,30 @@ const (
 	domPrefixCtx = "SigEd25519 no Ed25519 collisions\x00"
 )
 
-/// 1024,512,341,256,128
-
-var sha512Pool = newObjPool[hash.Hash](
-	sha512.Size,
+// / 1024,512,341,256,128
+var sha512Pool = newObjPool[hash.Hash](B_8,
 	func() hash.Hash {
 		return sha512.New()
 	},
 )
-
-var signaturePool = newObjPool[[]byte](
-	signatureSize,
+var signaturePool = newObjPool[[]byte](B_8,
 	func() []byte {
 		return lowlevelfunctions.MakeNoZero(signatureSize)
 	},
 )
 
-var publicKeyPool = newObjPool[[]byte](
-	publicKeyLen,
+var publicKeyPool = newObjPool[[]byte](B_8,
 	func() []byte {
 		return lowlevelfunctions.MakeNoZero(publicKeyLen)
 	},
 )
 
-func (p _PrivateKey) Public() crypto.PublicKey {
+func (p _PrivateKey) Public() _PublicKey {
 	var publicKey = publicKeyPool.get()
 	copy(publicKey, p[32:])
 	_ = publicKey[:0]
 	publicKeyPool.put(publicKey)
-	return *(*_PublicKey)(unsafe.Pointer(&publicKey))
+	return publicKey
 }
 
 func NewKeyFromSeed(seed []byte) _PrivateKey {
@@ -112,10 +106,8 @@ func newKeyFromSeed(privateKey []byte, seed []byte) {
 	}
 	A := (&edwards25519.Point{}).ScalarBaseMult(s)
 
-	publicKey := A.Bytes()
-
 	copy(privateKey[:], seed)
-	copy(privateKey[32:], publicKey)
+	copy(privateKey[32:], A.Bytes())
 }
 
 func (priv _PrivateKey) __Sign__(rand io.Reader, message []byte, opts crypto.SignerOpts) (signature []byte, err error) {
@@ -188,8 +180,8 @@ func verify(publicKey _PublicKey, message, sig []byte, domPrefix, context string
 	kh.Write(sig[:32])
 	kh.Write(publicKey)
 	kh.Write(message)
-	hramDigest := lowlevelfunctions.MakeNoZeroCap(0, sha512.Size)
-	hramDigest = kh.Sum(hramDigest)
+
+	hramDigest := kh.Sum(nil)
 	k, err := edwards25519.NewScalar().SetUniformBytes(hramDigest)
 	if err != nil {
 		panic("ed25519: internal error: setting scalar failed")
@@ -251,8 +243,8 @@ func sign(signature, privateKey, message []byte, domPrefix, context string) {
 	kh.Write(R.Bytes())
 	kh.Write(publicKey)
 	kh.Write(message)
-	hramDigest := lowlevelfunctions.MakeNoZeroCap(0, sha512.Size)
-	hramDigest = kh.Sum(hramDigest)
+
+	hramDigest := kh.Sum(nil)
 	k, err := edwards25519.NewScalar().SetUniformBytes(hramDigest)
 	if err != nil {
 		panic("ed25519: internal error: setting scalar failed")
@@ -380,14 +372,18 @@ func __generateKey__(rand io.Reader) (_PublicKey, _PrivateKey, error) {
 		rand = cryptorand.Reader
 	}
 
-	var seed [seedLen]byte
+	var seed = publicKeyPool.get()
 	if _, err := io.ReadFull(rand, seed[:]); err != nil {
 		return nil, nil, err
 	}
 
 	privateKey := NewKeyFromSeed(seed[:])
-	publicKey := [publicKeyLen]byte{}
+	_ = seed[:0]
+	publicKeyPool.put(seed)
+	publicKey := publicKeyPool.get()
 	copy(publicKey[:], privateKey[32:])
+	_ = publicKey[:0]
+	publicKeyPool.put(publicKey)
 
 	return publicKey[:], privateKey, nil
 }

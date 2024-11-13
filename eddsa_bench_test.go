@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-/// go test  -benchtime=10s -bench . -benchmem  -count 3
+/// go test -bench . -benchmem -cpuprofile cpu.prof -memprofile mem.prof -count 3
 
 var keySource = "9fd61b19dfffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f6"
 

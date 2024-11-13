@@ -22,7 +22,7 @@ type _PrivateKey []byte
 
 type _PublicKey []byte
 
-var privateKeyPool = newObjPool[_PrivateKey](privateKeyLen, func() _PrivateKey {
+var privateKeyPool = newObjPool[_PrivateKey](KB, func() _PrivateKey {
 	return lowlevelfunctions.MakeNoZero(privateKeyLen)
 })
 
@@ -120,7 +120,7 @@ func NewEDDSA[T KeySource](keySource T) (*_EDDSA, error) {
 
 	return &_EDDSA{
 		PrivateKey: privKey,
-		PublicKey:  privKey.Public().(_PublicKey),
+		PublicKey:  privKey.Public(),
 	}, nil
 }
 
