@@ -132,6 +132,7 @@ func TestNewEDDSAWithRandomBytes(t *testing.T) {
 
 	// t.Log(randomBytes)
 	eddsa, err := NewEDDSA(randomBytes)
+	t.Logf("data eddsa :%v, len eddsa: %v", eddsa, len(eddsa.PrivateKey))
 
 	if err != nil {
 		t.Fatalf("sometimes shit happens again : %v", err)

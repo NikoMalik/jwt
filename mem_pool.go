@@ -1,5 +1,9 @@
 package jwt
 
+import (
+	"unsafe"
+)
+
 const (
 	KB    = 1 << 10  // 1KB
 	KB_32 = 32 << 10 // 32KB
@@ -14,20 +18,45 @@ const (
 	KB_256   = 256 << 10 // 256KB
 	MB_8     = 8 << 20   // 8MB
 	MAX_SIZE = GB        // Maximum allowed size
+
+	numPools = 0x04
+	size     = 0x04
 )
 
-func alignSize(size, alignment int) int {
-	if size%alignment == 0 {
-		return size
-	}
-	return ((size / alignment) + 1) * alignment
+func alignSize(size, align int) int {
+	return (size + align - 1) &^ (align - 1) // Align to the nearest boundary
 }
 
 type objectPool[T any] struct {
-	_        noCopy
-	obj      []T
-	allocate func() T
-	cap      int
+	_          noCopy
+	obj        [][5]T
+	freeptr    []uintptr
+	allocate   func() T
+	currOffset int
+	currChunk  int
+	cap        int
+}
+
+func (o *objectPool[T]) clear() {
+
+	o.obj = nil
+	o.freeptr = nil
+	o.currOffset = 0
+	o.currChunk = 0
+}
+
+//go:noinline
+func (p *objectPool[T]) _t_(ptr uintptr) *T {
+	return (*T)(unsafe.Pointer(ptr))
+}
+
+//go:noinline
+func (p *objectPool[T]) _u_(v *T) uintptr {
+	return uintptr(unsafe.Pointer(v))
+}
+
+func (p *objectPool[T]) malloc() {
+	p.obj = append(p.obj, [5]T{})
 }
 
 func newObjPool[T any](cap int, f func() T) *objectPool[T] {
@@ -42,83 +71,52 @@ func newObjPool[T any](cap int, f func() T) *objectPool[T] {
 
 	if cap < 1 {
 		pool.cap = 0x0FFFFFFF
-		pool.obj = make([]T, 0, KB)
-		// sht := (*reflect.SliceHeader)(unsafe.Pointer(&pool.obj))
-		// sht.Cap = KB
-		// sht.Len = 0
-		// sht.Data = uintptr(unsafe.Pointer(&j))
+		pool.obj = make([][5]T, 0, KB)
+		pool.freeptr = make([]uintptr, 0, KB)
 
 	} else {
 		pool.cap = cap
-		pool.obj = make([]T, 0, alignSize(cap, B_8))
-		// sht := (*reflect.SliceHeader)(unsafe.Pointer(&pool.obj))
+		pool.obj = make([][5]T, 0, pool.cap)
+		pool.freeptr = make([]uintptr, 0, pool.cap)
+		// pool.obj = make([]T, 0, alignSize(cap, B_8))
 
 	}
-
 	return pool
 }
 
 func (o *objectPool[T]) get() T {
-
-	if len(o.obj) > 0 {
-
-		obj := o.obj[len(o.obj)-1]
-		o.obj = o.obj[:len(o.obj)-1]
-		return obj
+	if len(o.freeptr) != 0 {
+		ptr := o.freeptr[len(o.freeptr)-1]
+		o.freeptr = o.freeptr[:len(o.freeptr)-1]
+		return *o._t_(ptr)
 	}
-	return o.allocate() // Create a new object if pool is empty
+	st := o.allocate()
+	if len(o.obj) == 0 {
+		o.malloc()
+
+	}
+	if o.currOffset == len(o.obj[o.currChunk]) {
+		o.malloc()
+		o.currOffset = 0x0
+		o.currChunk++
+	}
+
+	// safe object in current chunk
+	// ptr := unsafe.Pointer(&st)
+
+	__bb__ := *(*[5]T)(unsafe.Pointer(&st))
+	for i := 0; i < 5; i++ {
+		o.obj[o.currChunk][o.currOffset+i] = __bb__[i]
+	}
+	o.currOffset += 5
+
+	return *(*T)(unsafe.Pointer(&o.obj[o.currChunk][o.currOffset-5]))
+
 }
 func (o *objectPool[T]) put(obj T) {
-	if len(o.obj) < o.cap {
+	if len(o.obj) >= o.cap {
+		return
+	}
 
-		o.obj = append(o.obj, obj)
-	}
-	return
-
-}
-
-func (o *objectPool[T]) allocateMore() {
-	newCap := alignSize(o.cap*2, B_8)
-	if newCap > GB {
-		newCap = GB
-	}
-	if newCap > o.cap {
-		o.cap = newCap
-
-		o.obj = append(o.obj, make([]T, 0, newCap-len(o.obj))...)
-	}
-}
-func level(cap int) int {
-	if cap <= 0 || cap > GB {
-		return -1
-	}
-	if cap <= KB {
-		return 1
-	} else if cap <= KB_32 {
-		return 2
-	} else if cap <= MB {
-		return 3
-	} else if cap <= MB_32 {
-		return 4
-	} else if cap <= GB {
-		return 5
-	}
-	return -1
-}
-
-// func i[T any]() *multiPool[T] {
-//
-//		var buckets [1]*multiPool[T]
-//		buckets[0] = newMultiPool[T](KB, 0, B_8, nil)
-//		// buckets[1] = newMultiPool[any](KB_32, KB, B_256, nil)
-//		// buckets[2] = newMultiPool[any](MB, KB_32, KB_8, nil)
-//		// buckets[3] = newMultiPool[any](MB_32, MB, KB_256, nil)
-//		// buckets[4] = newMultiPool[any](GB, MB_32, MB_8, nil)
-//	    return buckets[0]
-//
-// }
-func setFactoryFunc[T any](pool *objectPool[T], f func() T) {
-	if pool != nil {
-		pool.allocate = f
-	}
+	o.freeptr = append(o.freeptr, o._u_(&obj))
 }

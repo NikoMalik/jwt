@@ -22,8 +22,9 @@ type _PrivateKey []byte
 
 type _PublicKey []byte
 
-var privateKeyPool = newObjPool[_PrivateKey](KB, func() _PrivateKey {
-	return lowlevelfunctions.MakeNoZero(privateKeyLen)
+var privateKeyPool = newObjPool[_PrivateKey](8, func() _PrivateKey {
+	s := lowlevelfunctions.MakeNoZero(privateKeyLen)
+	return *(*_PrivateKey)(unsafe.Pointer(&s))
 })
 
 const (
@@ -48,7 +49,7 @@ func (e *_EDDSA) Close() {
 		n := (*reflect.SliceHeader)(unsafe.Pointer(&e.PrivateKey))
 
 		if n.Data != 0 || n.Cap != 0 {
-			_ = e.PrivateKey[:0]             // Clear the private key (zero out)
+			// _ = e.PrivateKey[:0]             // Clear the private key (zero out)
 			privateKeyPool.put(e.PrivateKey) // Return the private key to the pool
 		}
 
