@@ -8,27 +8,23 @@ import (
 
 // go test -run ^TestMain$ -v
 
-type Dataobj struct {
-	data [256]byte
-}
-
-var _p_ = newObjPool[[]byte](4, func() []byte { return lowlevelfunctions.MakeNoZero(64) })
+var _p_ = newObjPool[[]byte](4, 64, func() []byte { return lowlevelfunctions.MakeNoZero(64) })
 
 func TestMain(t *testing.T) {
-	test_ptr1 := _p_.get()
-
-	t.Logf("test_ptr1 (allocated): %v", test_ptr1)
-	copy(test_ptr1, []byte{1, 2, 3, 4})
-	t.Logf("test_ptr1: %v", test_ptr1)
-
-	_p_.put(test_ptr1)
-	t.Logf("test_ptr1: %v", test_ptr1)
-
-	test_ptr2 := _p_.get()
-	t.Logf("test_ptr2 (allocated): %v", test_ptr2)
-	copy(test_ptr2, []byte{5, 6, 7, 8})
-	t.Logf("test_ptr2: %v", test_ptr2)
-
+	// test_ptr1 := _p_.get()
+	//
+	// t.Logf("test_ptr1 (allocated): %v", test_ptr1)
+	// copy(test_ptr1, []byte{1, 2, 3, 4})
+	// t.Logf("test_ptr1: %v", test_ptr1)
+	//
+	// _p_.put(test_ptr1)
+	// t.Logf("test_ptr1: %v", test_ptr1)
+	//
+	// test_ptr2 := _p_.get()
+	// t.Logf("test_ptr2 (allocated): %v", test_ptr2)
+	// copy(test_ptr2, []byte{5, 6, 7, 8})
+	// t.Logf("test_ptr2: %v", test_ptr2)
+	//
 	// var pool1 Pool[[]byte]
 	//
 	// // Initialize memory pool

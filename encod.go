@@ -36,7 +36,6 @@ import (
 	"crypto"
 	"crypto/sha512"
 	"errors"
-	"fmt"
 	"hash"
 	"io"
 	"strconv"
@@ -50,6 +49,7 @@ import (
 // Domain separation prefixes used to disambiguate Ed25519/Ed25519ph/Ed25519ctx.
 // See RFC 8032, Section 2 and Section 5.1.
 const (
+	INITIAL            = 1
 	signatureFlagsMask = 224
 	// domPrefixPure is empty for pure Ed25519.
 	domPrefixPure = ""
@@ -61,25 +61,19 @@ const (
 	domPrefixCtx = "SigEd25519 no Ed25519 collisions\x00"
 )
 
-//	func init() {
-//		sha512Pool.clear()
-//		signaturePool.clear()
-//		publicKeyPool.clear()
-//	}
-//
 // / 1024,512,341,256,128
-var sha512Pool = newObjPool[hash.Hash](4,
-	func() hash.Hash {
-		return sha512.New()
-	},
+var sha512Pool = oldObjPool[hash.Hash](INITIAL, func() hash.Hash {
+	return _Newi_()
+},
 )
-var signaturePool = newObjPool[[]byte](4,
+
+var signaturePool = oldObjPool[[]byte](INITIAL,
 	func() []byte {
 		return lowlevelfunctions.MakeNoZero(signatureSize)
 	},
 )
 
-var publicKeyPool = newObjPool[[]byte](4,
+var publicKeyPool = oldObjPool[[]byte](INITIAL,
 	func() []byte {
 		return lowlevelfunctions.MakeNoZero(publicKeyLen)
 	},
@@ -87,9 +81,9 @@ var publicKeyPool = newObjPool[[]byte](4,
 
 func (p _PrivateKey) Public() _PublicKey {
 	var publicKey = publicKeyPool.get() // 1
-	fmt.Println(len(publicKey))
+	// fmt.Println(len(publicKey))
 	copy(publicKey, p[32:])
-	// publicKey = publicKey[:0]
+
 	publicKeyPool.put(publicKey)
 
 	return publicKey
@@ -108,7 +102,7 @@ func newKeyFromSeed(privateKey []byte, seed []byte) {
 		panic("ed25519: bad seed length: " + strconv.Itoa(l))
 	}
 
-	h := sha512.Sum512(seed)
+	h := _sum512_(seed)
 	s, err := edwards25519.NewScalar().SetBytesWithClamping(h[:32])
 	if err != nil {
 		panic("ed25519: internal error: setting scalar failed")
@@ -134,9 +128,10 @@ func (priv _PrivateKey) __Sign__(rand io.Reader, message []byte, opts crypto.Sig
 			return nil, errors.New("ed25519: bad Ed25519ph context length: " + strconv.Itoa(l))
 		}
 		signature := signaturePool.get() // 1
-		fmt.Println(len(signature))
+		// fmt.Println(len(signature))
 		sign(signature, priv, message, domPrefixPh, context)
 		// _ = signature[:0]
+
 		signaturePool.put(signature)
 		return signature, nil
 	case hash == crypto.Hash(0) && context != "": // Ed25519ctx
@@ -157,7 +152,7 @@ func Sign(privateKey _PrivateKey, message []byte) []byte {
 	// Outline the function body so that the returned signature can be
 	// stack-allocated.
 	var signature = signaturePool.get() // 2
-	fmt.Println(len(signature))
+	// fmt.Println(len(signature))
 	sign(signature, privateKey, message, domPrefixPure, "")
 	// _ = signature[:0]
 	signaturePool.put(signature)
@@ -198,7 +193,7 @@ func verify(publicKey _PublicKey, message, sig []byte, domPrefix, context string
 	kh.Write(publicKey)
 	kh.Write(message)
 
-	hramDigest := kh.Sum(nil)
+	hramDigest := kh.Sum(lowlevelfunctions.MakeNoZeroCap(0, size512))
 	k, err := edwards25519.NewScalar().SetUniformBytes(hramDigest)
 	if err != nil {
 		panic("ed25519: internal error: setting scalar failed")
@@ -224,7 +219,7 @@ func sign(signature, privateKey, message []byte, domPrefix, context string) {
 	}
 	seed, publicKey := privateKey[:seedLen], privateKey[seedLen:]
 
-	h := sha512.Sum512(seed)
+	h := _sum512_(seed)
 	s, err := edwards25519.NewScalar().SetBytesWithClamping(h[:32])
 	if err != nil {
 		panic("ed25519: internal error: setting scalar failed")
@@ -239,8 +234,8 @@ func sign(signature, privateKey, message []byte, domPrefix, context string) {
 	}
 	mh.Write(prefix)
 	mh.Write(message)
-	messageDigest := lowlevelfunctions.MakeNoZeroCap(0, sha512.Size)
-	messageDigest = mh.Sum(messageDigest)
+
+	messageDigest := mh.Sum(lowlevelfunctions.MakeNoZeroCap(0, sha512.Size))
 	r, err := edwards25519.NewScalar().SetUniformBytes(messageDigest)
 	if err != nil {
 		panic("ed25519: internal error: setting scalar failed")
@@ -261,7 +256,7 @@ func sign(signature, privateKey, message []byte, domPrefix, context string) {
 	kh.Write(publicKey)
 	kh.Write(message)
 
-	hramDigest := kh.Sum(nil)
+	hramDigest := kh.Sum(lowlevelfunctions.MakeNoZeroCap(0, sha512.Size))
 	k, err := edwards25519.NewScalar().SetUniformBytes(hramDigest)
 	if err != nil {
 		panic("ed25519: internal error: setting scalar failed")
@@ -396,11 +391,13 @@ func __generateKey__(rand io.Reader) (_PublicKey, _PrivateKey, error) {
 
 	privateKey := NewKeyFromSeed(seed[:])
 	// _ = seed[:0]
+
 	publicKeyPool.put(seed)
 	publicKey := publicKeyPool.get() //3
 	copy(publicKey[:], privateKey[32:])
+
 	// _ = publicKey[:0]
 	publicKeyPool.put(publicKey)
 
-	return publicKey[:], privateKey, nil
+	return publicKey, privateKey, nil
 }

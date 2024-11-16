@@ -8,6 +8,13 @@
 *.so
 *.dylib
 *.prof
+*.bin
+*.debug
+bin/
+debug.test3925393350
+debug
+app
+*.dlv/
 
 
 # Test binary, built with `go test -c`

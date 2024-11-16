@@ -22,9 +22,9 @@ type _PrivateKey []byte
 
 type _PublicKey []byte
 
-var privateKeyPool = newObjPool[_PrivateKey](8, func() _PrivateKey {
-	s := lowlevelfunctions.MakeNoZero(privateKeyLen)
-	return *(*_PrivateKey)(unsafe.Pointer(&s))
+var privateKeyPool = oldObjPool[_PrivateKey](INITIAL, func() _PrivateKey {
+
+	return lowlevelfunctions.MakeNoZero(privateKeyLen)
 })
 
 const (
@@ -32,7 +32,7 @@ const (
 	publicKeyLen  = ed25519.PublicKeySize  //32
 	signatureSize = ed25519.SignatureSize
 	seedLen       = ed25519.SeedSize //32
-	addressLen    = 20
+
 )
 
 type _EDDSA struct {
@@ -150,12 +150,14 @@ func GenerateEDDSARandom(rand io.Reader) (_PrivateKey, error) {
 		rand = cryptorand.Reader
 	}
 
-	var seed [seedLen]byte
+	var seed = publicKeyPool.get()
 	if _, err := io.ReadFull(rand, seed[:]); err != nil {
 		return nil, err
 	}
 
 	privateKey := NewKeyFromSeed(seed[:])
+
+	publicKeyPool.put(seed)
 	return privateKey, nil
 
 }
