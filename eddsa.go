@@ -22,7 +22,7 @@ type _PrivateKey []byte
 
 type _PublicKey []byte
 
-var privateKeyPool = oldObjPool[_PrivateKey](INITIAL, func() _PrivateKey {
+var privateKeyPool = newObjPool[_PrivateKey](128, 6, func() _PrivateKey {
 
 	return lowlevelfunctions.MakeNoZero(privateKeyLen)
 })
@@ -41,18 +41,13 @@ type _EDDSA struct {
 }
 
 func (e *_EDDSA) Reset() {
-	_ = e.PrivateKey[:0]
+	e.PrivateKey = e.PrivateKey[:0]
 }
 
 func (e *_EDDSA) Close() {
 	if len(e.PrivateKey) > 0 {
-		n := (*reflect.SliceHeader)(unsafe.Pointer(&e.PrivateKey))
 
-		if n.Data != 0 || n.Cap != 0 {
-			// _ = e.PrivateKey[:0]             // Clear the private key (zero out)
-			privateKeyPool.put(e.PrivateKey) // Return the private key to the pool
-		}
-
+		privateKeyPool.put(e.PrivateKey) // Return the private key to the pool
 	}
 	return
 }
@@ -108,12 +103,20 @@ func NewEDDSA[T KeySource](keySource T) (*_EDDSA, error) {
 		}
 
 	case [privateKeyLen]byte:
+		slice := *(*reflect.SliceHeader)(unsafe.Pointer(&v))
+		slice.Data = uintptr(unsafe.Pointer(&v))
+		slice.Len = privateKeyLen
+		slice.Cap = privateKeyLen
 
-		privKey = _PrivateKey(v[:])
-
+		privKey = *(*_PrivateKey)(unsafe.Pointer(&slice))
 	case *[privateKeyLen]byte: // pointer to private key
 
-		privKey = _PrivateKey(v[:])
+		slice := *(*reflect.SliceHeader)(unsafe.Pointer(&v))
+		slice.Data = uintptr(unsafe.Pointer(v))
+		slice.Len = privateKeyLen
+		slice.Cap = privateKeyLen
+
+		privKey = *(*_PrivateKey)(unsafe.Pointer(&slice))
 
 	default:
 		return nil, ErrInvalid

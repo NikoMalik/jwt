@@ -50,7 +50,8 @@ func TestNewSignerEDDSA(t *testing.T) {
 		t.Fatalf("Failed to create EDDSA signer: %v", err)
 	}
 	defer eddsa.Close()
-
+	// fmt.Println(eddsa.PrivateKey)
+	//
 	if len(eddsa.PrivateKey) != ed25519.PrivateKeySize {
 		t.Errorf("Expected private key size %d, got %d", ed25519.PrivateKeySize, len(eddsa.PrivateKey))
 	}
@@ -140,6 +141,7 @@ func TestNewEDDSAWithRandomBytes(t *testing.T) {
 	}
 
 	defer eddsa.Close()
+	// fmt.Println(eddsa.PrivateKey)
 
 	message := []byte{
 		1, 2, 3, 4, 5, 6, 7, 8, 9,
@@ -149,6 +151,8 @@ func TestNewEDDSAWithRandomBytes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("lol :%v", err)
 	}
+	// fmt.Println(sig)
+
 	valid := eddsa.Verify(message, sig)
 	if !valid {
 		t.Fatalf("Verification failed")

@@ -15,10 +15,10 @@ import "golang.org/x/sys/cpu"
 
 var ppc64sha512 = cpu.PPC64.IsPOWER8
 
-func init() {
-	Register("crypto/sha512", "POWER8", &ppc64sha512)
-}
-
+//	func init() {
+//		Register("crypto/sha512", "POWER8", &ppc64sha512)
+//	}
+//
 //go:noescape
 func blockPOWER(dig *digest, p []byte)
 

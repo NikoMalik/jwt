@@ -10,9 +10,9 @@ import "golang.org/x/sys/cpu"
 
 var useSHA512 = cpu.S390X.HasSHA512
 
-func init() {
-	Register("crypto/sha512", "SHA512", &useSHA512)
-}
+// func init() {
+// 	Register("crypto/sha512", "SHA512", &useSHA512)
+// }
 
 //go:noescape
 func blockS390X(dig *digest, p []byte)

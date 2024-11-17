@@ -11,42 +11,93 @@ import (
 func init() {
 
 	crypto.RegisterHash(crypto.SHA512, _Newi_)
+
 }
 
+var (
+	// SHA-512 (init0 to init7)
+	init512 = [8]uint64{
+		0x6a09e667f3bcc908, // init0
+		0xbb67ae8584caa73b, // init1
+		0x3c6ef372fe94f82b, // init2
+		0xa54ff53a5f1d36f1, // init3
+		0x510e527fade682d1, // init4
+		0x9b05688c2b3e6c1f, // init5
+		0x1f83d9abfb41bd6b, // init6
+		0x5be0cd19137e2179, // init7
+	}
+
+	// SHA-512/224 (init0_224 to init7_224)
+	init512_224 = [8]uint64{
+		0x8c3d37c819544da2, // init0_224
+		0x73e1996689dcd4d6, // init1_224
+		0x1dfab7ae32ff9c82, // init2_224
+		0x679dd514582f9fcf, // init3_224
+		0x0f6d2b697bd44da8, // init4_224
+		0x77e36f7304c48942, // init5_224
+		0x3f9d85a86a1d36c8, // init6_224
+		0x1112e6ad91d692a1, // init7_224
+	}
+
+	// SHA-512/256 (init0_256 to init7_256)
+	init512_256 = [8]uint64{
+		0x22312194fc2bf72c, // init0_256
+		0x9f555fa3c84c64c2, // init1_256
+		0x2393b86b6f53b151, // init2_256
+		0x963877195940eabd, // init3_256
+		0x96283ee2a88effe3, // init4_256
+		0xbe5e1e2553863992, // init5_256
+		0x2b0199fc2c85b8aa, // init6_256
+		0x0eb72ddc81c52ca2, // init7_256
+	}
+
+	// SHA-384 (init0_384 to init7_384)
+	init384 = [8]uint64{
+		0xcbbb9d5dc1059ed8, // init0_384
+		0x629a292a367cd507, // init1_384
+		0x9159015a3070dd17, // init2_384
+		0x152fecd8f70e5939, // init3_384
+		0x67332667ffc00b31, // init4_384
+		0x8eb44a8768581511, // init5_384
+		0xdb0c2e0d64f98fa7, // init6_384
+		0x47b5481dbefa4fa4, // init7_384
+	}
+)
+
 const (
-	chunk     = 128
-	init0     = 0x6a09e667f3bcc908
-	init1     = 0xbb67ae8584caa73b
-	init2     = 0x3c6ef372fe94f82b
-	init3     = 0xa54ff53a5f1d36f1
-	init4     = 0x510e527fade682d1
-	init5     = 0x9b05688c2b3e6c1f
-	init6     = 0x1f83d9abfb41bd6b
-	init7     = 0x5be0cd19137e2179
-	init0_224 = 0x8c3d37c819544da2
-	init1_224 = 0x73e1996689dcd4d6
-	init2_224 = 0x1dfab7ae32ff9c82
-	init3_224 = 0x679dd514582f9fcf
-	init4_224 = 0x0f6d2b697bd44da8
-	init5_224 = 0x77e36f7304c48942
-	init6_224 = 0x3f9d85a86a1d36c8
-	init7_224 = 0x1112e6ad91d692a1
-	init0_256 = 0x22312194fc2bf72c
-	init1_256 = 0x9f555fa3c84c64c2
-	init2_256 = 0x2393b86b6f53b151
-	init3_256 = 0x963877195940eabd
-	init4_256 = 0x96283ee2a88effe3
-	init5_256 = 0xbe5e1e2553863992
-	init6_256 = 0x2b0199fc2c85b8aa
-	init7_256 = 0x0eb72ddc81c52ca2
-	init0_384 = 0xcbbb9d5dc1059ed8
-	init1_384 = 0x629a292a367cd507
-	init2_384 = 0x9159015a3070dd17
-	init3_384 = 0x152fecd8f70e5939
-	init4_384 = 0x67332667ffc00b31
-	init5_384 = 0x8eb44a8768581511
-	init6_384 = 0xdb0c2e0d64f98fa7
-	init7_384 = 0x47b5481dbefa4fa4
+	chunk = 128
+	// init0     = 0x6a09e667f3bcc908
+	// init1     = 0xbb67ae8584caa73b
+	// init2     = 0x3c6ef372fe94f82b
+	// init3     = 0xa54ff53a5f1d36f1
+	// init4     = 0x510e527fade682d1
+	// init5     = 0x9b05688c2b3e6c1f
+	// init6     = 0x1f83d9abfb41bd6b
+	// init7     = 0x5be0cd19137e2179
+	// init0_224 = 0x8c3d37c819544da2
+	// init1_224 = 0x73e1996689dcd4d6
+	// init2_224 = 0x1dfab7ae32ff9c82
+	// init3_224 = 0x679dd514582f9fcf
+	// init4_224 = 0x0f6d2b697bd44da8
+	// init5_224 = 0x77e36f7304c48942
+	// init6_224 = 0x3f9d85a86a1d36c8
+	// init7_224 = 0x1112e6ad91d692a1
+	// init0_256 = 0x22312194fc2bf72c
+	// init1_256 = 0x9f555fa3c84c64c2
+	// init2_256 = 0x2393b86b6f53b151
+	// init3_256 = 0x963877195940eabd
+	// init4_256 = 0x96283ee2a88effe3
+	// init5_256 = 0xbe5e1e2553863992
+	// init6_256 = 0x2b0199fc2c85b8aa
+	// init7_256 = 0x0eb72ddc81c52ca2
+	// init0_384 = 0xcbbb9d5dc1059ed8
+	// init1_384 = 0x629a292a367cd507
+	// init2_384 = 0x9159015a3070dd17
+	// init3_384 = 0x152fecd8f70e5939
+	// init4_384 = 0x67332667ffc00b31
+	// init5_384 = 0x8eb44a8768581511
+	// init6_384 = 0xdb0c2e0d64f98fa7
+	// init7_384 = 0x47b5481dbefa4fa4
 
 	// size512 is the size, in bytes, of a SHA-512 checksum.
 	size512 = 64
@@ -84,41 +135,41 @@ type digest struct {
 func (d *digest) Reset() {
 	switch d.size {
 	case size384:
-		d.h[0] = init0_384
-		d.h[1] = init1_384
-		d.h[2] = init2_384
-		d.h[3] = init3_384
-		d.h[4] = init4_384
-		d.h[5] = init5_384
-		d.h[6] = init6_384
-		d.h[7] = init7_384
+		d.h[0] = init384[0]
+		d.h[1] = init384[1]
+		d.h[2] = init384[2]
+		d.h[3] = init384[3]
+		d.h[4] = init384[4]
+		d.h[5] = init384[5]
+		d.h[6] = init384[6]
+		d.h[7] = init384[7]
 	case size224:
-		d.h[0] = init0_224
-		d.h[1] = init1_224
-		d.h[2] = init2_224
-		d.h[3] = init3_224
-		d.h[4] = init4_224
-		d.h[5] = init5_224
-		d.h[6] = init6_224
-		d.h[7] = init7_224
+		d.h[0] = init512_224[0]
+		d.h[1] = init512_224[1]
+		d.h[2] = init512_224[2]
+		d.h[3] = init512_224[3]
+		d.h[4] = init512_224[4]
+		d.h[5] = init512_224[5]
+		d.h[6] = init512_224[6]
+		d.h[7] = init512_224[7]
 	case size256:
-		d.h[0] = init0_256
-		d.h[1] = init1_256
-		d.h[2] = init2_256
-		d.h[3] = init3_256
-		d.h[4] = init4_256
-		d.h[5] = init5_256
-		d.h[6] = init6_256
-		d.h[7] = init7_256
+		d.h[0] = init512_256[0]
+		d.h[1] = init512_256[1]
+		d.h[2] = init512_256[2]
+		d.h[3] = init512_256[3]
+		d.h[4] = init512_256[4]
+		d.h[5] = init512_256[5]
+		d.h[6] = init512_256[6]
+		d.h[7] = init512_256[7]
 	case size512:
-		d.h[0] = init0
-		d.h[1] = init1
-		d.h[2] = init2
-		d.h[3] = init3
-		d.h[4] = init4
-		d.h[5] = init5
-		d.h[6] = init6
-		d.h[7] = init7
+		d.h[0] = init512[0]
+		d.h[1] = init512[1]
+		d.h[2] = init512[2]
+		d.h[3] = init512[3]
+		d.h[4] = init512[4]
+		d.h[5] = init512[5]
+		d.h[6] = init512[6]
+		d.h[7] = init512[7]
 	default:
 		panic("unknown size")
 	}
@@ -239,7 +290,8 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 }
 
 func (d *digest) MarshalBinary() ([]byte, error) {
-	return d.AppendBinary(make([]byte, 0, marshaledSize))
+	var s [marshaledSize]byte
+	return d.AppendBinary(s[:0])
 }
 
 func (d *digest) AppendBinary(b []byte) ([]byte, error) {
@@ -280,10 +332,8 @@ func _sum512_(data []byte) [64]byte {
 
 	d := &digest{size: size512}
 	d.Reset()
-
-	// d.Reset()
 	d.Write(data)
-	// var sum [64]byte
+	var sum [64]byte
 	// d.Sum(nil)
-	return *(*[64]byte)(d.Sum(nil))
+	return *(*[64]byte)(d.Sum(sum[:0]))
 }

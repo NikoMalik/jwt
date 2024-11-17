@@ -10,10 +10,10 @@ import "golang.org/x/sys/cpu"
 
 var useSHA512 = cpu.ARM64.HasSHA512
 
-func init() {
-	Register("crypto/sha512", "SHA512", &useSHA512)
-}
-
+//	func init() {
+//		Register("crypto/sha512", "SHA512", &useSHA512)
+//	}
+//
 //go:noescape
 func blockSHA512(dig *digest, p []byte)
 

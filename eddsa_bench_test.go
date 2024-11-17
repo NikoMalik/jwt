@@ -2,10 +2,24 @@ package jwt
 
 import (
 	"crypto/rand"
+	"fmt"
+	"runtime"
 	"testing"
 )
 
 /// go test -bench . -benchmem -cpuprofile cpu.prof -memprofile mem.prof -count 3
+
+func printAllocations(stage string) {
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+	fmt.Printf("[%s] Alloc = %v KiB, TotalAlloc = %v KiB, Sys = %v KiB, NumGC = %v\n",
+		stage,
+		memStats.Alloc/1024,
+		memStats.TotalAlloc/1024,
+		memStats.Sys/1024,
+		memStats.NumGC,
+	)
+}
 
 var keySource = "9fd61b19dfffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f6"
 

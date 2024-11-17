@@ -23,16 +23,18 @@ const (
 	size_pool = 0x04
 )
 
-type objectPool[T any] struct { // for now bad pointers with uintptr and generics
-	// im still thinking about that....
-	_          noCopy
-	obj        [][]T
-	freeptr    []uintptr
-	allocate   func() T
-	currOffset int
-	currChunk  int
-	chunkSize  int
-	cap        int
+type objectPool[T any] struct {
+	// 	"github.com/NikoMalik/low-level-functions/constants"
+	_        noCopy
+	obj      [][]T
+	allocate func() T
+
+	freeptr []int32
+
+	currOffset int32
+	currChunk  int32
+	chunkSize  int32
+	cap        int32
 }
 
 func (o *objectPool[T]) clear() {
@@ -61,57 +63,55 @@ func (p *objectPool[T]) malloc() {
 	p.obj = append(p.obj, make([]T, p.chunkSize))
 }
 
-func newObjPool[T any](cap, chunkSize int, f func() T) *objectPool[T] {
-	pool := &objectPool[T]{allocate: f}
-	if cap <= 0 || cap > MAX_SIZE {
-		cap = MAX_SIZE
+func newObjPool[T any](cap, chunkSize int32, f func() T) *objectPool[T] {
+	if cap <= 0 {
+		cap = 1024 // default capacity
 	}
-	pool.chunkSize = chunkSize
-	pool.cap = cap
+	if chunkSize <= 0 {
+		chunkSize = 128 // default chunk size
+	}
 
-	if cap == 0 {
-		pool.obj = make([][]T, 0, KB)
-		pool.freeptr = make([]uintptr, 0, KB)
-	} else {
-		pool.obj = make([][]T, 0, pool.chunkSize)
-		pool.freeptr = make([]uintptr, 0, pool.cap)
+	return &objectPool[T]{
+		allocate:   f,
+		chunkSize:  chunkSize,
+		cap:        cap,
+		obj:        make([][]T, 0, cap),
+		freeptr:    make([]int32, 0, cap),
+		currOffset: 0,
+		currChunk:  0,
 	}
-	return pool
 }
 
-func (p *objectPool[T]) get() T {
-	// if has free slots
-	if len(p.freeptr) != 0 {
-		ptr := p.freeptr[len(p.freeptr)-1]
-		p.freeptr = p.freeptr[:len(p.freeptr)-1]
-		return *p._t_(ptr)
+func (o *objectPool[T]) get() T {
+	if len(o.freeptr) > 0 {
+		idx := o.freeptr[len(o.freeptr)-1]
+		o.freeptr = o.freeptr[:len(o.freeptr)-1]
+
+		chunk := idx / o.chunkSize
+		offset := idx % o.chunkSize
+		return o.obj[chunk][offset]
 	}
 
-	// create object with function
-	obj := p.allocate()
-
-	// if currentchunk is full allocate new
-	if len(p.obj) == 0 || p.currOffset == len(p.obj[p.currChunk]) {
-		p.malloc()
-		p.currOffset = 0
-		if len(p.obj) > 1 {
-			p.currChunk++
-		}
+	if len(o.obj) == 0 || o.currOffset == o.chunkSize {
+		o.malloc()
+		o.currOffset = 0
+		o.currChunk = int32(len(o.obj)) - 1
 	}
 
-	// save object in current chunk
-	p.obj[p.currChunk][p.currOffset] = obj
-	p.currOffset++
-
+	obj := o.allocate()
+	o.obj[o.currChunk][o.currOffset] = obj
+	o.currOffset++
 	return obj
 }
 
 func (o *objectPool[T]) put(obj T) {
-	if len(o.obj) >= o.cap {
+	if int32(len(o.freeptr)) >= o.cap {
 		return
 	}
 
-	o.freeptr = append(o.freeptr, o._u_(&obj))
+	chunk := o.currChunk
+	offset := o.currOffset - 1
+	o.freeptr = append(o.freeptr, chunk*o.chunkSize+offset)
 }
 
 type _oldObjectPool[T any] struct {

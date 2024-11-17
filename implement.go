@@ -1,5 +1,7 @@
 package jwt
 
+//unused
+
 type implementation struct {
 	Package   string
 	Name      string

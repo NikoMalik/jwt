@@ -39,6 +39,7 @@ import (
 	"hash"
 	"io"
 	"strconv"
+	"unsafe"
 
 	cryptorand "crypto/rand"
 
@@ -62,18 +63,18 @@ const (
 )
 
 // / 1024,512,341,256,128
-var sha512Pool = oldObjPool[hash.Hash](INITIAL, func() hash.Hash {
+var sha512Pool = newObjPool[hash.Hash](128, 4, func() hash.Hash {
 	return _Newi_()
 },
 )
 
-var signaturePool = oldObjPool[[]byte](INITIAL,
+var signaturePool = newObjPool[[]byte](128, 6,
 	func() []byte {
 		return lowlevelfunctions.MakeNoZero(signatureSize)
 	},
 )
 
-var publicKeyPool = oldObjPool[[]byte](INITIAL,
+var publicKeyPool = newObjPool[[]byte](128, 6,
 	func() []byte {
 		return lowlevelfunctions.MakeNoZero(publicKeyLen)
 	},
@@ -91,9 +92,10 @@ func (p _PrivateKey) Public() _PublicKey {
 
 func NewKeyFromSeed(seed []byte) _PrivateKey {
 	// Outline the function body so that the returned key can be stack-allocated.
-	var privateKey = lowlevelfunctions.MakeNoZero(privateKeyLen)
+	var privateKey = privateKeyPool.get()
 
 	newKeyFromSeed(privateKey, seed)
+	privateKeyPool.put(privateKey)
 	return privateKey
 }
 
@@ -138,8 +140,11 @@ func (priv _PrivateKey) __Sign__(rand io.Reader, message []byte, opts crypto.Sig
 		if l := len(context); l > 255 {
 			return nil, errors.New("ed25519: bad Ed25519ctx context length: " + strconv.Itoa(l))
 		}
-		signature := make([]byte, signatureSize)
+		var signature = signaturePool.get()
+
 		sign(signature, priv, message, domPrefixCtx, context)
+
+		signaturePool.put(signature)
 		return signature, nil
 	case hash == crypto.Hash(0): // Ed25519
 		return Sign(priv, message), nil
@@ -192,8 +197,9 @@ func verify(publicKey _PublicKey, message, sig []byte, domPrefix, context string
 	}
 	kh.Write(publicKey)
 	kh.Write(message)
+	var h_Digest [64]byte
 
-	hramDigest := kh.Sum(lowlevelfunctions.MakeNoZeroCap(0, size512))
+	hramDigest := kh.Sum(h_Digest[:0])
 	k, err := edwards25519.NewScalar().SetUniformBytes(hramDigest)
 	if err != nil {
 		panic("ed25519: internal error: setting scalar failed")
@@ -234,8 +240,9 @@ func sign(signature, privateKey, message []byte, domPrefix, context string) {
 	}
 	mh.Write(prefix)
 	mh.Write(message)
+	var message_D, h_D [64]byte
 
-	messageDigest := mh.Sum(lowlevelfunctions.MakeNoZeroCap(0, sha512.Size))
+	messageDigest := mh.Sum(message_D[:0])
 	r, err := edwards25519.NewScalar().SetUniformBytes(messageDigest)
 	if err != nil {
 		panic("ed25519: internal error: setting scalar failed")
@@ -256,7 +263,7 @@ func sign(signature, privateKey, message []byte, domPrefix, context string) {
 	kh.Write(publicKey)
 	kh.Write(message)
 
-	hramDigest := kh.Sum(lowlevelfunctions.MakeNoZeroCap(0, sha512.Size))
+	hramDigest := kh.Sum(h_D[:0])
 	k, err := edwards25519.NewScalar().SetUniformBytes(hramDigest)
 	if err != nil {
 		panic("ed25519: internal error: setting scalar failed")
@@ -400,4 +407,20 @@ func __generateKey__(rand io.Reader) (_PublicKey, _PrivateKey, error) {
 	publicKeyPool.put(publicKey)
 
 	return publicKey, privateKey, nil
+}
+
+func b_32(s []byte) *[32]byte {
+	if len(s) < 32 {
+		panic("b_32 must be 32 slice")
+	}
+
+	return (*[32]byte)(unsafe.Pointer(&s))
+}
+
+func b_64(s []byte) *[64]byte {
+	if len(s) < 64 {
+		panic("b_64 must be 64 slice")
+	}
+
+	return (*[64]byte)(unsafe.Pointer(&s))
 }
