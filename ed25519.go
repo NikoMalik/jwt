@@ -63,39 +63,33 @@ const (
 )
 
 // / 1024,512,341,256,128
-var sha512Pool = newObjPool[hash.Hash](128, 4, func() hash.Hash {
+var sha512Pool = newObjPool[hash.Hash](128, 6, func() hash.Hash {
 	return _Newi_()
 },
 )
 
-var signaturePool = newObjPool[[]byte](128, 6,
-	func() []byte {
-		return lowlevelfunctions.MakeNoZero(signatureSize)
-	},
-)
-
-var publicKeyPool = newObjPool[[]byte](128, 6,
-	func() []byte {
-		return lowlevelfunctions.MakeNoZero(publicKeyLen)
-	},
-)
+var bytePools = [3]*objectPool[[]byte]{
+	newObjPool[[]byte](128, 6, func() []byte { return lowlevelfunctions.MakeNoZero(signatureSize) }), // signaturePool //0
+	newObjPool[[]byte](128, 6, func() []byte { return lowlevelfunctions.MakeNoZero(publicKeyLen) }),  // publicKeyPool //1
+	newObjPool[[]byte](128, 6, func() []byte { return lowlevelfunctions.MakeNoZero(privateKeyLen) }), //privateKeyLen //2
+}
 
 func (p _PrivateKey) Public() _PublicKey {
-	var publicKey = publicKeyPool.get() // 1
+	var publicKey = bytePools[1].get()
 	// fmt.Println(len(publicKey))
 	copy(publicKey, p[32:])
 
-	publicKeyPool.put(publicKey)
+	bytePools[1].put(publicKey)
 
 	return publicKey
 }
 
 func NewKeyFromSeed(seed []byte) _PrivateKey {
 	// Outline the function body so that the returned key can be stack-allocated.
-	var privateKey = privateKeyPool.get()
+	var privateKey = bytePools[2].get()
 
 	newKeyFromSeed(privateKey, seed)
-	privateKeyPool.put(privateKey)
+	bytePools[2].put(privateKey)
 	return privateKey
 }
 
@@ -129,22 +123,22 @@ func (priv _PrivateKey) __Sign__(rand io.Reader, message []byte, opts crypto.Sig
 		if l := len(context); l > 255 {
 			return nil, errors.New("ed25519: bad Ed25519ph context length: " + strconv.Itoa(l))
 		}
-		signature := signaturePool.get() // 1
+		signature := bytePools[0].get()
 		// fmt.Println(len(signature))
 		sign(signature, priv, message, domPrefixPh, context)
 		// _ = signature[:0]
 
-		signaturePool.put(signature)
+		bytePools[0].put(signature)
 		return signature, nil
 	case hash == crypto.Hash(0) && context != "": // Ed25519ctx
 		if l := len(context); l > 255 {
 			return nil, errors.New("ed25519: bad Ed25519ctx context length: " + strconv.Itoa(l))
 		}
-		var signature = signaturePool.get()
+		var signature = bytePools[0].get()
 
 		sign(signature, priv, message, domPrefixCtx, context)
 
-		signaturePool.put(signature)
+		bytePools[0].put(signature)
 		return signature, nil
 	case hash == crypto.Hash(0): // Ed25519
 		return Sign(priv, message), nil
@@ -156,11 +150,11 @@ func (priv _PrivateKey) __Sign__(rand io.Reader, message []byte, opts crypto.Sig
 func Sign(privateKey _PrivateKey, message []byte) []byte {
 	// Outline the function body so that the returned signature can be
 	// stack-allocated.
-	var signature = signaturePool.get() // 2
+	var signature = bytePools[0].get()
 	// fmt.Println(len(signature))
 	sign(signature, privateKey, message, domPrefixPure, "")
 	// _ = signature[:0]
-	signaturePool.put(signature)
+	bytePools[0].put(signature)
 	return signature
 }
 
@@ -376,12 +370,12 @@ func __VerifyWithOptions__(publicKey _PublicKey, message, sig []byte, opts *_Opt
 }
 
 type _Options struct {
-	// Context, if not empty, selects Ed25519ctx or provides the context string
 	// for Ed25519ph. It can be at most 255 bytes in length.
-	Context string
-
-	// Hash can be zero for regular Ed25519, or crypto.SHA512 for Ed25519ph.
 	Hash crypto.Hash
+
+	// Context, if not empty, selects Ed25519ctx or provides the context string
+	// Hash can be zero for regular Ed25519, or crypto.SHA512 for Ed25519ph.
+	Context string
 }
 
 func (o *_Options) HashFunc() crypto.Hash { return o.Hash }
@@ -391,7 +385,7 @@ func __generateKey__(rand io.Reader) (_PublicKey, _PrivateKey, error) {
 		rand = cryptorand.Reader
 	}
 
-	var seed = publicKeyPool.get() // 2
+	var seed = bytePools[1].get()
 	if _, err := io.ReadFull(rand, seed[:]); err != nil {
 		return nil, nil, err
 	}
@@ -399,12 +393,12 @@ func __generateKey__(rand io.Reader) (_PublicKey, _PrivateKey, error) {
 	privateKey := NewKeyFromSeed(seed[:])
 	// _ = seed[:0]
 
-	publicKeyPool.put(seed)
-	publicKey := publicKeyPool.get() //3
+	bytePools[1].put(seed)
+	publicKey := bytePools[1].get()
 	copy(publicKey[:], privateKey[32:])
 
 	// _ = publicKey[:0]
-	publicKeyPool.put(publicKey)
+	bytePools[1].put(publicKey)
 
 	return publicKey, privateKey, nil
 }

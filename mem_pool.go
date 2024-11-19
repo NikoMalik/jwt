@@ -2,6 +2,8 @@ package jwt
 
 import (
 	"unsafe"
+
+	lowlevelfunctions "github.com/NikoMalik/low-level-functions"
 )
 
 const (
@@ -19,18 +21,17 @@ const (
 	MB_8     = 8 << 20   // 8MB
 	MAX_SIZE = GB        // Maximum allowed size
 
-	numPools  = 0x04
-	size_pool = 0x04
+	numPools      = 0x04
+	size_pool     = 0x04
+	cacheLineSize = unsafe.Sizeof(lowlevelfunctions.CacheLinePadding{})
 )
 
 type objectPool[T any] struct {
 	// 	"github.com/NikoMalik/low-level-functions/constants"
-	_        noCopy
-	obj      [][]T
-	allocate func() T
-
-	freeptr []int32
-
+	_          noCopy
+	obj        [][]T
+	allocate   func() T
+	freeptr    []int32
 	currOffset int32
 	currChunk  int32
 	chunkSize  int32
@@ -60,7 +61,11 @@ func (p *objectPool[T]) _u_(v *T) uintptr {
 }
 
 func (p *objectPool[T]) malloc() {
-	p.obj = append(p.obj, make([]T, p.chunkSize))
+	newChunk := make([]T, p.chunkSize)
+	for i := range newChunk {
+		newChunk[i] = p.allocate()
+	}
+	p.obj = append(p.obj, newChunk)
 }
 
 func newObjPool[T any](cap, chunkSize int32, f func() T) *objectPool[T] {
@@ -104,14 +109,15 @@ func (o *objectPool[T]) get() T {
 	return obj
 }
 
-func (o *objectPool[T]) put(obj T) {
-	if int32(len(o.freeptr)) >= o.cap {
+func (p *objectPool[T]) put(obj T) {
+	if int32(len(p.freeptr)) >= p.cap {
 		return
 	}
 
-	chunk := o.currChunk
-	offset := o.currOffset - 1
-	o.freeptr = append(o.freeptr, chunk*o.chunkSize+offset)
+	chunk := p.currChunk
+	offset := p.currOffset - 1
+
+	p.freeptr = append(p.freeptr, chunk*p.chunkSize+offset)
 }
 
 type _oldObjectPool[T any] struct {

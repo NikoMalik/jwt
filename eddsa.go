@@ -5,13 +5,13 @@ package jwt
 import (
 	"crypto/ed25519"
 	cryptorand "crypto/rand"
-	"encoding/hex"
+
 	"fmt"
 	"io"
 	"reflect"
 	"unsafe"
 
-	lowlevelfunctions "github.com/NikoMalik/low-level-functions"
+	"github.com/NikoMalik/jwt/hex"
 )
 
 type KeySource interface {
@@ -21,11 +21,6 @@ type KeySource interface {
 type _PrivateKey []byte
 
 type _PublicKey []byte
-
-var privateKeyPool = newObjPool[_PrivateKey](128, 6, func() _PrivateKey {
-
-	return lowlevelfunctions.MakeNoZero(privateKeyLen)
-})
 
 const (
 	privateKeyLen = ed25519.PrivateKeySize // 64
@@ -47,7 +42,7 @@ func (e *_EDDSA) Reset() {
 func (e *_EDDSA) Close() {
 	if len(e.PrivateKey) > 0 {
 
-		privateKeyPool.put(e.PrivateKey) // Return the private key to the pool
+		bytePools[2].put(e.PrivateKey)
 	}
 	return
 }
@@ -59,7 +54,7 @@ func (e *_EDDSA) SignSize() int { return len(e.PrivateKey) }
 func (e *_EDDSA) Algorithm() Algorithm { return EDDSA }
 
 func NewEDDSA[T KeySource](keySource T) (*_EDDSA, error) {
-	var privKey _PrivateKey = privateKeyPool.get()
+	var privKey _PrivateKey = bytePools[2].get()
 	if privKey == nil || len(privKey) == 0 {
 		return nil, ErrCannotGetObjFromPool
 	}
@@ -153,18 +148,18 @@ func GenerateEDDSARandom(rand io.Reader) (_PrivateKey, error) {
 		rand = cryptorand.Reader
 	}
 
-	var seed = publicKeyPool.get()
+	var seed = bytePools[1].get()
 	if _, err := io.ReadFull(rand, seed[:]); err != nil {
 		return nil, err
 	}
 
 	privateKey := NewKeyFromSeed(seed[:])
 
-	publicKeyPool.put(seed)
+	bytePools[1].put(seed)
 	return privateKey, nil
 
 }
 
 func (p _PrivateKey) Bytes() []byte {
-	return *(*[]byte)(unsafe.Pointer(&p))
+	return p
 }

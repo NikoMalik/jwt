@@ -15,6 +15,7 @@ debug.test3925393350
 debug
 app
 *.dlv/
+*.o
 
 
 # Test binary, built with `go test -c`
