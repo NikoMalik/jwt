@@ -105,7 +105,7 @@ func newKeyFromSeed(privateKey []byte, seed []byte) {
 	}
 	A := (&edwards25519.Point{}).ScalarBaseMult(s)
 
-	copy(privateKey[:], seed)
+	copy(privateKey, seed)
 	copy(privateKey[32:], A.Bytes())
 }
 
