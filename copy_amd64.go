@@ -3,4 +3,4 @@
 package jwt
 
 //go:noescape
-func _copy_(src []byte, src2 []byte)
+func _copy_(src []byte, src2 []byte) int

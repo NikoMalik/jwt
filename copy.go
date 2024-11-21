@@ -2,7 +2,7 @@
 
 package jwt
 
-func _copy_(src1, src2 []byte) {
-	copy(src1, src2)
+func _copy_(src []byte, src2 []byte) int {
 
+	return copy(src, src2)
 }

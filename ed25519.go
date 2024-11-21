@@ -77,7 +77,7 @@ var bytePools = [3]*objectPool[[]byte]{
 func (p _PrivateKey) Public() _PublicKey {
 	var publicKey = bytePools[1].get()
 	// fmt.Println(len(publicKey))
-	copy(publicKey, p[32:])
+	_copy_(publicKey, p[32:])
 
 	bytePools[1].put(publicKey)
 
@@ -85,6 +85,7 @@ func (p _PrivateKey) Public() _PublicKey {
 }
 
 func NewKeyFromSeed(seed []byte) _PrivateKey {
+
 	// Outline the function body so that the returned key can be stack-allocated.
 	var privateKey = bytePools[2].get()
 
@@ -105,8 +106,8 @@ func newKeyFromSeed(privateKey []byte, seed []byte) {
 	}
 	A := (&edwards25519.Point{}).ScalarBaseMult(s)
 
-	copy(privateKey, seed)
-	copy(privateKey[32:], A.Bytes())
+	_copy_(privateKey, seed)
+	_copy_(privateKey[32:], A.Bytes())
 }
 
 func (priv _PrivateKey) __Sign__(rand io.Reader, message []byte, opts crypto.SignerOpts) (signature []byte, err error) {
@@ -334,8 +335,8 @@ func sign(signature, privateKey, message []byte, domPrefix, context string) {
 	// signature[62] = SBytes[30]
 	// signature[63] = SBytes[31]
 	//
-	copy(signature[:32], R.Bytes())
-	copy(signature[32:], S.Bytes())
+	_copy_(signature[:32], R.Bytes())
+	_copy_(signature[32:], S.Bytes())
 }
 
 func __VerifyWithOptions__(publicKey _PublicKey, message, sig []byte, opts *_Options) error {
@@ -395,7 +396,7 @@ func __generateKey__(rand io.Reader) (_PublicKey, _PrivateKey, error) {
 
 	bytePools[1].put(seed)
 	publicKey := bytePools[1].get()
-	copy(publicKey[:], privateKey[32:])
+	_copy_(publicKey[:], privateKey[32:])
 
 	// _ = publicKey[:0]
 	bytePools[1].put(publicKey)
