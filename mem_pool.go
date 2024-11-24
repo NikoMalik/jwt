@@ -60,14 +60,29 @@ func (p *objectPool[T]) _u_(v *T) uintptr {
 	return uintptr(unsafe.Pointer(v))
 }
 
-func (p *objectPool[T]) malloc() {
-	newChunk := make([]T, p.chunkSize)
-	for i := range newChunk {
-		newChunk[i] = p.allocate()
+func (p *objectPool[T]) malloc(numChunks int32) {
+	if numChunks <= 0 {
+		numChunks = 1
 	}
-	p.obj = append(p.obj, newChunk)
-}
 
+	for chunk := int32(0); chunk < numChunks; chunk++ {
+		newChunk := make([]T, p.chunkSize)
+
+		for i := 0; i < len(newChunk); i += 4 {
+			newChunk[i] = p.allocate()
+			if i+1 < len(newChunk) {
+				newChunk[i+1] = p.allocate()
+			}
+			if i+2 < len(newChunk) {
+				newChunk[i+2] = p.allocate()
+			}
+			if i+3 < len(newChunk) {
+				newChunk[i+3] = p.allocate()
+			}
+		}
+		p.obj = append(p.obj, newChunk)
+	}
+}
 func newObjPool[T any](cap, chunkSize int32, f func() T) *objectPool[T] {
 	if cap <= 0 {
 		cap = 1024 // default capacity
@@ -94,13 +109,22 @@ func (o *objectPool[T]) get() T {
 
 		chunk := idx / o.chunkSize
 		offset := idx % o.chunkSize
+
+		if chunk < 0 || chunk >= int32(len(o.obj)) || offset < 0 || offset >= o.chunkSize {
+			panic("index out of bounds in object pool")
+		}
+
 		return o.obj[chunk][offset]
 	}
 
 	if len(o.obj) == 0 || o.currOffset == o.chunkSize {
-		o.malloc()
+		o.malloc(1)
 		o.currOffset = 0
 		o.currChunk = int32(len(o.obj)) - 1
+	}
+
+	if o.currChunk < 0 || o.currChunk >= int32(len(o.obj)) || o.currOffset < 0 || o.currOffset >= o.chunkSize {
+		panic("index out of bounds in object pool")
 	}
 
 	obj := o.allocate()
@@ -116,6 +140,10 @@ func (p *objectPool[T]) put(obj T) {
 
 	chunk := p.currChunk
 	offset := p.currOffset - 1
+
+	if chunk < 0 || chunk >= int32(len(p.obj)) || offset < 0 || offset >= p.chunkSize {
+		panic("index out of bounds in object pool")
+	}
 
 	p.freeptr = append(p.freeptr, chunk*p.chunkSize+offset)
 }

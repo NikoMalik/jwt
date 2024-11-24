@@ -5,13 +5,12 @@ package jwt
 import (
 	"crypto/ed25519"
 	cryptorand "crypto/rand"
+	"encoding/hex"
 
 	"fmt"
 	"io"
 	"reflect"
 	"unsafe"
-
-	"github.com/NikoMalik/jwt/hex"
 )
 
 type KeySource interface {

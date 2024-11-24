@@ -200,7 +200,8 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 	nn = len(p)
 	d.len += uint64(nn)
 	if d.nx > 0 {
-		n := _copy_(d.x[d.nx:], p)
+
+		n := copy(d.x[d.nx:], p)
 		d.nx += n
 		if d.nx == chunk {
 			block(d, d.x[:])
@@ -214,7 +215,7 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 		p = p[n:]
 	}
 	if len(p) > 0 {
-		d.nx = _copy_(d.x[:], p)
+		d.nx = copy(d.x[:], p)
 	}
 	return
 }
@@ -283,7 +284,7 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	b, d.h[5] = consumeUint64(b)
 	b, d.h[6] = consumeUint64(b)
 	b, d.h[7] = consumeUint64(b)
-	b = b[_copy_(d.x[:], b):]
+	b = b[copy(d.x[:], b):]
 	b, d.len = consumeUint64(b)
 	d.nx = int(d.len % chunk)
 	return nil

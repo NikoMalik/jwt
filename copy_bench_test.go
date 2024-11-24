@@ -6,7 +6,7 @@ import (
 
 //go test -bench . -benchmem -gcflags '-l -N'  -cpuprofile cpu.prof -memprofile mem.prof -count 3
 
-func BenchmarkStandardCopy(b *testing.B) {
+func BenchmarkStandardCopy_1024(b *testing.B) {
 	src := make([]byte, MB) // 1MB of data
 	dst := make([]byte, len(src))
 
@@ -17,13 +17,57 @@ func BenchmarkStandardCopy(b *testing.B) {
 	// fmt.Println(src)
 }
 
-func BenchmarkOptimizedCopy(b *testing.B) {
+func BenchmarkOptimizedCopy_1024(b *testing.B) {
 	src := make([]byte, MB)
 	dst := make([]byte, len(src))
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_copy_(src, dst)
+	}
+	// fmt.Println(src)
+}
+
+func BenchmarkAVX2Copy_1024(b *testing.B) {
+	src := make([]byte, MB)
+	dst := make([]byte, len(src))
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		copy_AVX2_128(src, dst)
+	}
+	// fmt.Println(src)
+}
+
+func BenchmarkStandartCopy_256(b *testing.B) {
+	src := make([]byte, 256)
+	dst := make([]byte, len(src))
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		copy(src, dst)
+	}
+	// fmt.Println(src)
+}
+
+func BenchmarkOptimizedCopy_256(b *testing.B) {
+	src := make([]byte, 256)
+	dst := make([]byte, len(src))
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_copy_(src, dst)
+	}
+	// fmt.Println(src)
+}
+
+func BenchmarkCopyAVX2_256(b *testing.B) {
+	src := make([]byte, 256)
+	dst := make([]byte, len(src))
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		copy_AVX2_256(src, dst)
 	}
 	// fmt.Println(src)
 }
@@ -50,6 +94,17 @@ func BenchmarkOptimizedCopy_64(b *testing.B) {
 	// fmt.Println(src)
 }
 
+func BenchmarkCopyAVX2_64(b *testing.B) {
+	src := make([]byte, 64)
+	dst := make([]byte, len(src))
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		copy_AVX2_64(src, dst)
+	}
+	// fmt.Println(src)
+}
+
 func BenchmarkStandardCopy_32(b *testing.B) {
 	src := make([]byte, 32)
 	dst := make([]byte, len(src))
@@ -72,8 +127,41 @@ func BenchmarkOptimizedCopy_32(b *testing.B) {
 	// fmt.Println(src)
 }
 
-func BenchmarkStandardCopy_16(b *testing.B) {
-	src := make([]byte, 16)
+func BenchmarkCopyAVX2_32(b *testing.B) {
+	src := make([]byte, 32)
+	dst := make([]byte, len(src))
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		copy_AVX2_32(src, dst)
+	}
+	// fmt.Println(src)
+}
+
+// func BenchmarkStandardCopy_16(b *testing.B) {
+// 	src := make([]byte, 16)
+// 	dst := make([]byte, len(src))
+//
+// 	b.ResetTimer()
+// 	for i := 0; i < b.N; i++ {
+// 		copy(src, dst)
+// 	}
+// 	// fmt.Println(src)
+// }
+//
+// func BenchmarkOptimizedCopy_16(b *testing.B) {
+// 	src := make([]byte, 16)
+// 	dst := make([]byte, len(src))
+//
+// 	b.ResetTimer()
+// 	for i := 0; i < b.N; i++ {
+// 		_copy_(src, dst)
+// 	}
+// 	// fmt.Println(src)
+// }
+
+func BenchmarkStandartCopy_128(b *testing.B) {
+	src := make([]byte, 128)
 	dst := make([]byte, len(src))
 
 	b.ResetTimer()
@@ -83,8 +171,8 @@ func BenchmarkStandardCopy_16(b *testing.B) {
 	// fmt.Println(src)
 }
 
-func BenchmarkOptimizedCopy_16(b *testing.B) {
-	src := make([]byte, 16)
+func BenchmarkOptimizedCopy_128(b *testing.B) {
+	src := make([]byte, 128)
 	dst := make([]byte, len(src))
 
 	b.ResetTimer()
@@ -94,24 +182,79 @@ func BenchmarkOptimizedCopy_16(b *testing.B) {
 	// fmt.Println(src)
 }
 
-func BenchmarkStandardCopy_8(b *testing.B) {
-	src := make([]byte, 8)
+func BenchmarkAVX2Copy_128(b *testing.B) {
+	src := make([]byte, 128)
 	dst := make([]byte, len(src))
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		copy(src, dst)
+		copy_AVX2_128(src, dst)
 	}
 	// fmt.Println(src)
 }
 
-func BenchmarkOptimizedCopy_8(b *testing.B) {
-	src := make([]byte, 8)
-	dst := make([]byte, len(src))
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_copy_(src, dst)
-	}
-	// fmt.Println(src)
-}
+// func BenchmarkStandardCopy_8(b *testing.B) {
+// 	src := make([]byte, 8)
+// 	dst := make([]byte, len(src))
+//
+// 	b.ResetTimer()
+// 	for i := 0; i < b.N; i++ {
+// 		copy(src, dst)
+// 	}
+// 	// fmt.Println(src)
+// }
+//
+// func BenchmarkOptimizedCopy_8(b *testing.B) {
+// 	src := make([]byte, 8)
+// 	dst := make([]byte, len(src))
+//
+// 	b.ResetTimer()
+// 	for i := 0; i < b.N; i++ {
+// 		_copy_(src, dst)
+// 	}
+// 	// fmt.Println(src)
+// }
+//
+// func BenchmarkStandardCopy_4(b *testing.B) {
+// 	src := make([]byte, 4)
+// 	dst := make([]byte, len(src))
+//
+// 	b.ResetTimer()
+// 	for i := 0; i < b.N; i++ {
+// 		copy(src, dst)
+// 	}
+// 	// fmt.Println(src)
+// }
+//
+// func BenchmarkOptimizedCopy_4(b *testing.B) {
+// 	src := make([]byte, 4)
+// 	dst := make([]byte, len(src))
+//
+// 	b.ResetTimer()
+// 	for i := 0; i < b.N; i++ {
+// 		_copy_(src, dst)
+// 	}
+// 	// fmt.Println(src)
+// }
+//
+// func BenchmarkStandardCopy_2(b *testing.B) {
+// 	src := make([]byte, 2)
+// 	dst := make([]byte, len(src))
+//
+// 	b.ResetTimer()
+// 	for i := 0; i < b.N; i++ {
+// 		copy(src, dst)
+// 	}
+// 	// fmt.Println(src)
+// }
+//
+// func BenchmarkOptimizedCopy_2(b *testing.B) {
+// 	src := make([]byte, 2)
+// 	dst := make([]byte, len(src))
+//
+// 	b.ResetTimer()
+// 	for i := 0; i < b.N; i++ {
+// 		_copy_(src, dst)
+// 	}
+// 	// fmt.Println(src)
+// }

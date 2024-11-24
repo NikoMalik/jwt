@@ -1,4 +1,6 @@
 #include "textflag.h"
+#include "go_asm.h"
+#include "funcdata.h"
 
 
 
@@ -37,7 +39,7 @@ DATA MASK1<>+0xF0(SB)/8, $0x80
 DATA MASK1<>+0xF8(SB)/8, $0x80
 
 
-GLOBL MASK1(SB),RODATA,  $32
+GLOBL MASK1(SB),RODATA|NOPTR,  $32
 
 
 
@@ -74,7 +76,7 @@ DATA MASK2<>+0xE8(SB)/8, $0x80
 DATA MASK2<>+0xF0(SB)/8, $0x80
 DATA MASK2<>+0xF8(SB)/8, $0x80
 
-GLOBL MASK2(SB),RODATA, $32
+GLOBL MASK2(SB),RODATA|NOPTR, $32
 
 DATA MASK3<>+0x00(SB)/8, $0x80
 DATA MASK3<>+0x08(SB)/8, $0x80
@@ -109,7 +111,7 @@ DATA MASK3<>+0xE8(SB)/8, $0x80
 DATA MASK3<>+0xF0(SB)/8, $0x80
 DATA MASK3<>+0xF8(SB)/8, $0x80
 
-GLOBL MASK3(SB),RODATA, $32
+GLOBL MASK3(SB),RODATA|NOPTR, $32
 
 DATA MASK4<>+0x00(SB)/8, $0x80
 DATA MASK4<>+0x08(SB)/8, $0x80
@@ -147,7 +149,7 @@ DATA MASK4<>+0xF8(SB)/8, $0xE
 
 
 
-GLOBL MASK4(SB),RODATA,  $32
+GLOBL MASK4(SB),RODATA|NOPTR,  $32
 
 DATA P_MASK<>+0x00(SB)/8, $0
 DATA P_MASK<>+0x08(SB)/8, $4
@@ -158,65 +160,242 @@ DATA P_MASK<>+0x28(SB)/8, $6
 DATA P_MASK<>+0x30(SB)/8, $3
 DATA P_MASK<>+0x38(SB)/8, $7
 // 8
-GLOBL P_Mask(SB),RODATA,  $32
+GLOBL P_Mask(SB),RODATA|NOPTR,  $32
+
+
+//TEXT ·hasAVX2(SB), NOSPLIT, $0-1
+//    MOVQ ·cpuid(SB), AX    
+//    BTL $0x08, AX                
+//    SETCC AL                  
+//    MOVBQZX AL, AX               
+//    RET
+
+//if len < 32, dont' use avx2
+TEXT ·copy_AVX2_32(SB), NOSPLIT , $0-48
+	MOVQ dst_data+0(FP),  DI
+	MOVQ src_data+24(FP), SI
+	MOVQ src_len+32(FP),      BX
+    XORQ AX, AX
+
+LOOP:
+	VMOVDQU 0(SI)(AX*1), Y0
+	VMOVDQU Y0, 0(DI)(AX*1)
+
+    
+	ADDQ $32, AX
+	CMPQ AX, BX
+	JL   LOOP
+	RET
+
+
+TEXT ·copy_AVX2_64(SB), NOSPLIT , $0-48
+    MOVQ dst_data+0(FP),  DI
+    MOVQ src_data+24(FP), SI
+    MOVQ src_len+32(FP),      BX
+    XORQ AX, AX
+
+LOOP:
+
+    //VMOVDQU 0(SI)(AX*1), Y0 
+
+    //VMOVDQU Y0, 0(DI)(AX*1) 
+
+
+    //ADDQ $32, AX 
+
+    //CMPQ AX, BX 
+    //JGE END 
+
+
+    //VMOVDQU 0(SI)(AX*1), Y1 
+
+    //VMOVDQU Y1, 0(DI)(AX*1) 
+
+
+    //ADDQ $32, AX 
+    //CMPQ AX, BX 
+    //JL LOOP 
+    //RET
+
+    VMOVDQU 0(SI)(AX*1), Y0 
+
+    VMOVDQU  32(SI)(AX*1),Y1
+
+    VMOVDQU Y0, 0(DI)(AX*1)
+
+    VMOVDQU Y1, 32(DI)(AX*1)
+
+
+    ADDQ $64, AX 
+
+    CMPQ AX, BX 
+    JL LOOP 
+    RET
 
 
 
 
-TEXT ·_copy_(SB), $0-48
+TEXT ·copy_AVX2_128(SB), NOSPLIT , $0-48
+    MOVQ dst_data+0(FP),  DI
+    MOVQ src_data+24(FP), SI
+    MOVQ src_len+32(FP),      BX
+    XORQ AX,AX
+
+LOOP:
+    // load 128 byte (4 * 32 byte) for once
+    VMOVDQU 0(SI)(AX*1), Y0
+    VMOVDQU 32(SI)(AX*1), Y1
+    VMOVDQU 64(SI)(AX*1), Y2
+    VMOVDQU 96(SI)(AX*1), Y3
+
+    // save 128 bytes
+    VMOVDQU Y0, 0(DI)(AX*1)
+    VMOVDQU Y1, 32(DI)(AX*1)
+    VMOVDQU Y2, 64(DI)(AX*1)
+    VMOVDQU Y3, 96(DI)(AX*1)
+
+    // count 128 index
+    ADDQ $128, AX
+
+    // check 
+    CMPQ AX, BX
+    JL LOOP   
+
+    RET      
+
+
+TEXT ·copy_AVX2_256(SB), NOSPLIT , $0-24 // TODO: finnaly this sh
+    MOVQ dst_data+0(FP),  DI
+    MOVQ src_data+24(FP), SI
+    MOVQ src_len+32(FP),      BX
+    XORQ AX,AX
+
+LOOP:
+    VMOVDQU 0(SI)(AX*1), Y0
+    VMOVDQU Y0, 0(DI)(AX*1)
+    ADDQ $128,AX 
+    CMPQ AX, BX
+    JGE END
+
+    VMOVDQU 0(SI)(AX*1), Y1
+    VMOVDQU Y1, 0(DI)(AX*1)
+    ADDQ $128,AX
+    CMPQ AX, BX
+    JL LOOP
+
+    CMPQ AX, BX
+    JL   LOOP
+    RET
+END:
+    RET
+
+
+//use from 512
+TEXT ·_copy_(SB),NOSPLIT, $0-48
     MOVQ    dst_base+0x00(FP), AX
-	MOVQ    src_base+0x18(FP), CX
+   	MOVQ    src_base+0x18(FP), CX
 	MOVQ    dst_len+0x08(FP), DX
 	MOVQ    src_len+0x20(FP), BX
-	CMPQ    BX, DX
+
+   	CMPQ    BX, DX
 	CMOVQLT BX, DX
 	MOVQ    DX, ret+0x30(FP)
-    VMOVDQU MASK1(SB), Y10     // Load MASK1 into Y10 register
-    VMOVDQU MASK2(SB), Y11     // Load MASK2 into Y11 register
-    VMOVDQU MASK3(SB), Y12     // Load MASK3 into Y12 register
-    VMOVDQU MASK4(SB), Y13     // Load MASK4 into Y13 register
-    VMOVDQU P_Mask(SB), Y14    // Load P_Mask into Y14 register
-
+    VMOVDQU MASK1+0(SB), Y10     // Load MASK1 into Y10 register
+    VMOVDQU MASK2+8(SB), Y11     // Load MASK2 into Y11 register
+    VMOVDQU MASK3+16(SB), Y12     // Load MASK3 into Y12 register
+    VMOVDQU MASK4+24(SB), Y13     // Load MASK4 into Y13 register
+    VMOVDQU P_Mask+32(SB), Y14    // Load P_Mask into Y14 register
 
 
 tail:
-	CMPQ DX, $0x00
-	JE   done
-	CMPQ DX, $0x01
-	JE   handle1
+	CMPQ DX,$0x00
+    JEQ   done
+
+
+
+	CMPQ DX, $0x02
+    JBE   handle1to2
+
+
+
 	CMPQ DX, $0x03
 	JBE  handle2to3
+
+
+
 	CMPQ DX, $0x04
 	JE   handle4
+
+
+
 	CMPQ DX, $0x08
-	JB   handle5to7
 	JE   handle8
+	JB   handle5to7
+
+
+
+
+
 	CMPQ DX, $0x10
 	JBE  handle9to16
-	CMPQ DX, $0x20
-	JBE  handle17to32
-	CMPQ DX, $0x40
-	JBE  handle33to64
-    BTL  $0x08, ·X86+0(SB)
-    JCC  generic
-	CMPQ DX, $0x00000080
-    JB   avx2_tail
-	JMP  avx2
 
+
+	CMPQ DX, $32 
+    BTL  $0x08, ·X86+0(SB)
+    JCC  handle17to32
+    JBE avx2_tail_1to32
+    
+    CALL ·copy_AVX2_32+0(SB)
+    
+
+
+	CMPQ DX, $0x40 // 64
+    BTL  $0x08, ·X86+8(SB)
+	JCC  handle33to64
+    JB avx2_tail
+
+    CALL ·copy_AVX2_64+0(SB)
+   
+   
+    //CALL ·copy_AVX2(SB)
+	CMPQ DX, $0x00000080 
+    JB   avx2_tail
+    CALL ·copy_AVX2_128+0(SB)
+	//JMP  avx2
+
+    CMPQ DX, $0x00000100
+    JB   avx2_tail
+    JMP  avx2
+
+// runtime·memmove(SB)
 done:
 	RET
 
+handle1to2:
+    MOVB (CX), AX              // Load the first byte from source (CX) to AX
+    MOVB -1(CX)(DX*1), CL      // Load the second byte from source (CX + DX) into CL
+    MOVB 1(CX), CL             // Load the third byte from source (CX + 1) into CL
+    MOVB CL, 1(AX)             // Store the byte in the destination (AX + 1)
+    RET
+
 handle1:
-	MOVB (CX), CL
-	MOVB CL, (AX)
-	RET
+    MOVB (CX), CL 
+    MOVB CL, (AX)
+    RET            
 
 handle2to3:
-	MOVW (CX), BX
-	MOVW -2(CX)(DX*1), CX
-	MOVW BX, (AX)
-	MOVW CX, -2(AX)(DX*1)
-	RET
+	CMPQ DX, 2                
+    JE handle2               
+    MOVW (CX), BX           
+    MOVB 2(CX), CL         
+    MOVW BX, (AX)         
+    MOVB CL, 2(AX)       
+    RET                 
+
+handle2:
+    MOVW (CX), BX      
+    MOVW BX, (AX)     
+    RET
 
 
 generic:
@@ -292,6 +471,14 @@ handle33to64:
 	MOVOU X3, -16(AX)(DX*1)
 	RET
 
+avx:
+    VMOVDQU 0(CX)(SI*1),Y0 
+    VMOVDQU Y0, 0(AX)(SI*1)
+    ADDQ $32, SI
+    CMPQ SI, DX
+    JZ avx2_done
+    JAE   avx
+
 avx2:
     VMOVDQU (CX), Y0
 	VMOVDQU 32(CX), Y1
@@ -342,8 +529,16 @@ avx2_tail_1to64:
 	VMOVDQU Y1, -32(AX)(DX*1)
 
 
+avx2_tail_1to32:
+    VMOVDQU (CX), Y0
+    VMOVDQU -32(CX)(DX*1), Y1
+    VMOVDQU Y0, (AX)
+    VMOVDQU Y1, -32(AX)(DX*1)
+
 
 
 avx2_done:
 	VZEROUPPER
 	RET
+
+

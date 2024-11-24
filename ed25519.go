@@ -32,7 +32,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 import (
-	"bytes"
 	"crypto"
 	"crypto/sha512"
 	"errors"
@@ -77,7 +76,8 @@ var bytePools = [3]*objectPool[[]byte]{
 func (p _PrivateKey) Public() _PublicKey {
 	var publicKey = bytePools[1].get()
 	// fmt.Println(len(publicKey))
-	_copy_(publicKey, p[32:])
+	_p_ := p[32:]
+	copy_AVX2_32(publicKey, _p_)
 
 	bytePools[1].put(publicKey)
 
@@ -105,9 +105,13 @@ func newKeyFromSeed(privateKey []byte, seed []byte) {
 		panic("ed25519: internal error: setting scalar failed")
 	}
 	A := (&edwards25519.Point{}).ScalarBaseMult(s)
+	// seed 32
+	// privateKey 64
 
-	_copy_(privateKey, seed)
-	_copy_(privateKey[32:], A.Bytes())
+	//fmt.Println(len(A.Bytes())) // 32
+	__p__ := privateKey[32:]
+	copy_AVX2_64(privateKey, seed)
+	copy_AVX2_32(__p__, A.Bytes())
 }
 
 func (priv _PrivateKey) __Sign__(rand io.Reader, message []byte, opts crypto.SignerOpts) (signature []byte, err error) {
@@ -211,7 +215,7 @@ func verify(publicKey _PublicKey, message, sig []byte, domPrefix, context string
 	kh.Reset()
 	sha512Pool.put(kh)
 
-	return bytes.Equal(sig[:32], R.Bytes())
+	return lowlevelfunctions.Equal(sig[:32], R.Bytes())
 }
 
 func sign(signature, privateKey, message []byte, domPrefix, context string) {
@@ -335,8 +339,9 @@ func sign(signature, privateKey, message []byte, domPrefix, context string) {
 	// signature[62] = SBytes[30]
 	// signature[63] = SBytes[31]
 	//
-	_copy_(signature[:32], R.Bytes())
-	_copy_(signature[32:], S.Bytes())
+
+	copy_AVX2_32(signature[:32], R.Bytes())
+	copy_AVX2_32(signature[32:], S.Bytes())
 }
 
 func __VerifyWithOptions__(publicKey _PublicKey, message, sig []byte, opts *_Options) error {
@@ -396,7 +401,8 @@ func __generateKey__(rand io.Reader) (_PublicKey, _PrivateKey, error) {
 
 	bytePools[1].put(seed)
 	publicKey := bytePools[1].get()
-	_copy_(publicKey[:], privateKey[32:])
+
+	copy_AVX2_64(publicKey, privateKey[32:])
 
 	// _ = publicKey[:0]
 	bytePools[1].put(publicKey)
