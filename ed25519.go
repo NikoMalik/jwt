@@ -32,6 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/sha512"
 	"errors"
@@ -67,31 +68,29 @@ var sha512Pool = newObjPool[hash.Hash](128, 6, func() hash.Hash {
 },
 )
 
-var bytePools = [3]*objectPool[[]byte]{
-	newObjPool[[]byte](128, 6, func() []byte { return lowlevelfunctions.MakeNoZero(signatureSize) }), // signaturePool //0
-	newObjPool[[]byte](128, 6, func() []byte { return lowlevelfunctions.MakeNoZero(publicKeyLen) }),  // publicKeyPool //1
-	newObjPool[[]byte](128, 6, func() []byte { return lowlevelfunctions.MakeNoZero(privateKeyLen) }), //privateKeyLen //2
-}
-
+//	var bytePools = [3]*objectPool[[]byte]{
+//		newObjPool[[]byte](128, 6, func() []byte { return alignSlice(signatureSize, 32) }), // signaturePool //64
+//		newObjPool[[]byte](128, 6, func() []byte { return alignSlice(publicKeyLen, 32) }),  // publicKeyPool //32
+//		newObjPool[[]byte](128, 6, func() []byte { return alignSlice(privateKeyLen, 32) }), //privateKeyLen //64
+//	}
 func (p _PrivateKey) Public() _PublicKey {
-	var publicKey = bytePools[1].get()
+	var publicKey = alignArray_32(32)
 	// fmt.Println(len(publicKey))
-	_p_ := p[32:]
-	copy_AVX2_32(publicKey, _p_)
 
-	bytePools[1].put(publicKey)
+	copy_AVX2_32(publicKey[:], p[32:])
 
-	return publicKey
+	return publicKey[:]
 }
 
 func NewKeyFromSeed(seed []byte) _PrivateKey {
 
 	// Outline the function body so that the returned key can be stack-allocated.
-	var privateKey = bytePools[2].get()
+	var privateKey = alignSlice(privateKeyLen, 32)
 
-	newKeyFromSeed(privateKey, seed)
-	bytePools[2].put(privateKey)
-	return privateKey
+	newKeyFromSeed(privateKey[:], seed)
+	// bytePools[2].clear()
+
+	return privateKey[:]
 }
 
 func newKeyFromSeed(privateKey []byte, seed []byte) {
@@ -109,9 +108,9 @@ func newKeyFromSeed(privateKey []byte, seed []byte) {
 	// privateKey 64
 
 	//fmt.Println(len(A.Bytes())) // 32
-	__p__ := privateKey[32:]
+
 	copy_AVX2_64(privateKey, seed)
-	copy_AVX2_32(__p__, A.Bytes())
+	copy_AVX2_64(privateKey[32:], A.Bytes())
 }
 
 func (priv _PrivateKey) __Sign__(rand io.Reader, message []byte, opts crypto.SignerOpts) (signature []byte, err error) {
@@ -128,23 +127,21 @@ func (priv _PrivateKey) __Sign__(rand io.Reader, message []byte, opts crypto.Sig
 		if l := len(context); l > 255 {
 			return nil, errors.New("ed25519: bad Ed25519ph context length: " + strconv.Itoa(l))
 		}
-		signature := bytePools[0].get()
+		signature := alignArray_64(32)
 		// fmt.Println(len(signature))
-		sign(signature, priv, message, domPrefixPh, context)
+		sign(signature[:], priv, message, domPrefixPh, context)
 		// _ = signature[:0]
 
-		bytePools[0].put(signature)
-		return signature, nil
+		return signature[:], nil
 	case hash == crypto.Hash(0) && context != "": // Ed25519ctx
 		if l := len(context); l > 255 {
 			return nil, errors.New("ed25519: bad Ed25519ctx context length: " + strconv.Itoa(l))
 		}
-		var signature = bytePools[0].get()
+		var signature = alignArray_64(32)
+		sign(signature[:], priv, message, domPrefixCtx, context)
+		// bytePools[0].clear()
 
-		sign(signature, priv, message, domPrefixCtx, context)
-
-		bytePools[0].put(signature)
-		return signature, nil
+		return signature[:], nil
 	case hash == crypto.Hash(0): // Ed25519
 		return Sign(priv, message), nil
 	default:
@@ -155,15 +152,16 @@ func (priv _PrivateKey) __Sign__(rand io.Reader, message []byte, opts crypto.Sig
 func Sign(privateKey _PrivateKey, message []byte) []byte {
 	// Outline the function body so that the returned signature can be
 	// stack-allocated.
-	var signature = bytePools[0].get()
+	var signature = alignSlice(signatureSize, 32)
+
 	// fmt.Println(len(signature))
-	sign(signature, privateKey, message, domPrefixPure, "")
+	sign(signature[:], privateKey, message, domPrefixPure, "")
 	// _ = signature[:0]
-	bytePools[0].put(signature)
-	return signature
+
+	return signature[:]
 }
 
-func __Verify__(publicKey _PublicKey, message, sig []byte) bool {
+func Verify__(publicKey _PublicKey, message, sig []byte) bool {
 	return verify(publicKey, message, sig, domPrefixPure, "")
 }
 
@@ -215,7 +213,7 @@ func verify(publicKey _PublicKey, message, sig []byte, domPrefix, context string
 	kh.Reset()
 	sha512Pool.put(kh)
 
-	return lowlevelfunctions.Equal(sig[:32], R.Bytes())
+	return bytes.Equal(sig[:32], R.Bytes())
 }
 
 func sign(signature, privateKey, message []byte, domPrefix, context string) {
@@ -340,8 +338,8 @@ func sign(signature, privateKey, message []byte, domPrefix, context string) {
 	// signature[63] = SBytes[31]
 	//
 
-	copy_AVX2_32(signature[:32], R.Bytes())
-	copy_AVX2_32(signature[32:], S.Bytes())
+	copy_AVX2_64(signature[:32], R.Bytes())
+	copy_AVX2_64(signature[32:], S.Bytes())
 }
 
 func __VerifyWithOptions__(publicKey _PublicKey, message, sig []byte, opts *_Options) error {
@@ -386,12 +384,16 @@ type _Options struct {
 
 func (o *_Options) HashFunc() crypto.Hash { return o.Hash }
 
+func GenerateED25519(rand io.Reader) (_PublicKey, _PrivateKey, error) {
+	return __generateKey__(rand)
+}
+
 func __generateKey__(rand io.Reader) (_PublicKey, _PrivateKey, error) {
 	if rand == nil {
 		rand = cryptorand.Reader
 	}
 
-	var seed = bytePools[1].get()
+	var seed = alignArray_32(32)
 	if _, err := io.ReadFull(rand, seed[:]); err != nil {
 		return nil, nil, err
 	}
@@ -399,15 +401,13 @@ func __generateKey__(rand io.Reader) (_PublicKey, _PrivateKey, error) {
 	privateKey := NewKeyFromSeed(seed[:])
 	// _ = seed[:0]
 
-	bytePools[1].put(seed)
-	publicKey := bytePools[1].get()
+	publicKey := alignArray_32(32)
 
-	copy_AVX2_64(publicKey, privateKey[32:])
+	copy_AVX2_32(publicKey[:], privateKey[32:])
 
 	// _ = publicKey[:0]
-	bytePools[1].put(publicKey)
 
-	return publicKey, privateKey, nil
+	return publicKey[:], privateKey, nil
 }
 
 func b_32(s []byte) *[32]byte {

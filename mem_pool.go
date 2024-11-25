@@ -38,14 +38,6 @@ type objectPool[T any] struct {
 	cap        int32
 }
 
-func (o *objectPool[T]) clear() {
-
-	o.obj = nil
-	o.freeptr = nil
-	o.currOffset = 0
-	o.currChunk = 0
-}
-
 func (p *objectPool[T]) _t_(ptr uintptr) *T {
 	if ptr == 0 {
 		panic("nil pointer dereference")
@@ -83,6 +75,7 @@ func (p *objectPool[T]) malloc(numChunks int32) {
 		p.obj = append(p.obj, newChunk)
 	}
 }
+
 func newObjPool[T any](cap, chunkSize int32, f func() T) *objectPool[T] {
 	if cap <= 0 {
 		cap = 1024 // default capacity
@@ -91,15 +84,21 @@ func newObjPool[T any](cap, chunkSize int32, f func() T) *objectPool[T] {
 		chunkSize = 128 // default chunk size
 	}
 
+	obj := make([][]T, 0, cap)
+	for i := int32(0); i < cap; i++ {
+		obj = append(obj, alignGeneric[T](int(chunkSize), 32))
+	}
+
 	return &objectPool[T]{
 		allocate:   f,
 		chunkSize:  chunkSize,
 		cap:        cap,
-		obj:        make([][]T, 0, cap),
+		obj:        obj,
 		freeptr:    make([]int32, 0, cap),
 		currOffset: 0,
 		currChunk:  0,
 	}
+
 }
 
 func (o *objectPool[T]) get() T {

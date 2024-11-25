@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	"fmt"
 	"testing"
 
 	lowlevelfunctions "github.com/NikoMalik/low-level-functions"
@@ -65,3 +66,55 @@ func TestMain(t *testing.T) {
 	// // t.Logf("publickey2: %v", publickey2)
 	// //
 } //
+
+// A sample allocator function for testing
+func intAllocator() int {
+	return 42 // Arbitrary value to return from the pool
+}
+
+// Test objectPool initialization
+func TestObjectPoolInitialization(t *testing.T) {
+	pool := newObjPool(12, 4, intAllocator)
+
+	// Test initial capacity and chunk size
+	if len(pool.obj) != 12 {
+		t.Errorf("Expected pool to have 12 chunks, but got %d", len(pool.obj))
+	}
+
+	if pool.chunkSize != 4 {
+		t.Errorf("Expected chunk size to be 4, but got %d", pool.chunkSize)
+	}
+
+	fmt.Println(len(pool.obj[0]))
+	fmt.Println(len(pool.freeptr))
+
+	p := pool.get()
+	fmt.Println(len(pool.freeptr))
+	pool.put(p)
+	fmt.Println(len(pool.freeptr))
+}
+
+// Test object allocation and deallocation from the pool
+func TestObjectPoolGetPut(t *testing.T) {
+	pool := newObjPool(10, 4, intAllocator)
+
+	// Test that an object can be obtained from the pool
+	obj1 := pool.get()
+	if obj1 != 42 {
+		t.Errorf("Expected object value to be 42, but got %d", obj1)
+	}
+
+	// Test that an object can be returned to the pool
+	pool.put(obj1)
+
+	// Test that the object is reused when requested again
+	obj2 := pool.get()
+	if obj2 != 42 {
+		t.Errorf("Expected object value to be 42, but got %d", obj2)
+	}
+
+	// Check that we are reusing the same object (the pool is working)
+	if obj1 != obj2 {
+		t.Errorf("Expected object to be reused, but got different instances")
+	}
+}

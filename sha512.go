@@ -1,18 +1,11 @@
 package jwt
 
 import (
-	"crypto"
 	"errors"
 	"hash"
 
 	lowlevelfunctions "github.com/NikoMalik/low-level-functions"
 )
-
-func init() {
-
-	crypto.RegisterHash(crypto.SHA512, _Newi_)
-
-}
 
 var (
 	// SHA-512 (init0 to init7)
@@ -125,6 +118,7 @@ const (
 )
 
 type digest struct {
+	_    noCopy
 	h    [8]uint64
 	x    [chunk]byte // chunk 128
 	nx   int

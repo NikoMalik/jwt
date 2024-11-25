@@ -1,5 +1,7 @@
 package jwt
 
+import "unsafe"
+
 // Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -99,6 +101,81 @@ func must[T any](v T, err error) T {
 	return v
 }
 
+func reset_64(slice []byte) []byte {
+	_ = slice[64]
+	slice[0], slice[1], slice[2], slice[3], slice[4], slice[5], slice[6], slice[7] = 0, 0, 0, 0, 0, 0, 0, 0
+	slice[8], slice[9], slice[10], slice[11], slice[12], slice[13], slice[14], slice[15] = 0, 0, 0, 0, 0, 0, 0, 0
+	slice[16], slice[17], slice[18], slice[19], slice[20], slice[21], slice[22], slice[23] = 0, 0, 0, 0, 0, 0, 0, 0
+	slice[24], slice[25], slice[26], slice[27], slice[28], slice[29], slice[30], slice[31] = 0, 0, 0, 0, 0, 0, 0, 0
+	slice[32], slice[33], slice[34], slice[35], slice[36], slice[37], slice[38], slice[39] = 0, 0, 0, 0, 0, 0, 0, 0
+	slice[40], slice[41], slice[42], slice[43], slice[44], slice[45], slice[46], slice[47] = 0, 0, 0, 0, 0, 0, 0, 0
+	slice[48], slice[49], slice[50], slice[51], slice[52], slice[53], slice[54], slice[55] = 0, 0, 0, 0, 0, 0, 0, 0
+	slice[56], slice[57], slice[58], slice[59], slice[60], slice[61], slice[62], slice[63] = 0, 0, 0, 0, 0, 0, 0, 0
+
+	return slice
+}
+
+func reset_32(slice []byte) []byte {
+	_ = slice[32]
+	slice[0], slice[1], slice[2], slice[3], slice[4], slice[5], slice[6], slice[7] = 0, 0, 0, 0, 0, 0, 0, 0
+	slice[8], slice[9], slice[10], slice[11], slice[12], slice[13], slice[14], slice[15] = 0, 0, 0, 0, 0, 0, 0, 0
+	slice[16], slice[17], slice[18], slice[19], slice[20], slice[21], slice[22], slice[23] = 0, 0, 0, 0, 0, 0, 0, 0
+	slice[24], slice[25], slice[26], slice[27], slice[28], slice[29], slice[30], slice[31] = 0, 0, 0, 0, 0, 0, 0, 0
+
+	return slice
+}
+
+//go:nosplit
+func alignArray_32(alignment int) [32]byte {
+	var buf [32 + 31]byte // 31 max padding
+	base := uintptr(unsafe.Pointer(&buf[0]))
+	offset := base % uintptr(alignment)
+	var alignedPtr uintptr
+	if offset == 0 {
+		alignedPtr = base
+	} else {
+		alignedPtr = base + uintptr(alignment) - offset
+	}
+
+	return *(*[32]byte)(unsafe.Pointer(alignedPtr))
+}
+
+//go:nosplit
+func alignArray_64(alignment int) [64]byte {
+
+	var buf [64 + 31]byte
+	base := uintptr(unsafe.Pointer(&buf[0]))
+	offset := int(base % uintptr(alignment))
+
+	var alignedPtr uintptr
+	if offset == 0 {
+		alignedPtr = base
+	} else {
+		alignedPtr = base + uintptr(alignment-offset)
+	}
+
+	return *(*[64]byte)(unsafe.Pointer(alignedPtr))
+}
+
+func alignSlice(size int, alignment int) []byte {
+	buf := make([]byte, size+alignment)
+	offset := int(uintptr(unsafe.Pointer(&buf[0])) % uintptr(alignment))
+	if offset == 0 {
+		return buf[:size]
+	}
+	return buf[alignment-offset : alignment-offset+size]
+}
+
+func alignGeneric[T any](size int, alignment int) []T {
+	buf := make([]T, size+alignment)
+	offset := int(uintptr(unsafe.Pointer(&buf[0])) % uintptr(alignment))
+	if offset == 0 {
+		return buf[:size]
+	}
+
+	return buf[alignment-offset : alignment-offset+size]
+}
+
 func BePutUint64(b []byte, v uint64) {
 	_ = b[7] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v >> 56)
@@ -111,9 +188,6 @@ func BePutUint64(b []byte, v uint64) {
 	b[7] = byte(v)
 }
 
-//	func block(dig *digest, p []byte) {
-//		blockGeneric(dig, p)
-//	}
 func BeUint64(b []byte) uint64 {
 	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |

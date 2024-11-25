@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/rand"
 	"fmt"
+	"log"
 
 	"github.com/NikoMalik/jwt"
 )
@@ -23,5 +25,29 @@ func main() {
 	if !eddsa.Verify(message, signature) {
 		fmt.Printf("Failed to verify signature for valid message")
 	}
+
+	publicKey, privateKey, err := jwt.GenerateED25519(rand.Reader)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("Private Key: %x\n", privateKey)
+	fmt.Printf("Public Key: %x\n", publicKey)
+
+	msg := []byte("Hello, Ed25519!")
+	sig := jwt.Sign(privateKey, message)
+
+	valid := jwt.Verify__(publicKey, msg, sig)
+	if valid {
+		fmt.Println("Signature is valid.")
+	}
+
+	publicKey2, privateKey2, err := jwt.GenerateED25519(rand.Reader)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("Private Key: %x\n", privateKey2)
+	fmt.Printf("Public Key: %x\n", publicKey2)
 
 }

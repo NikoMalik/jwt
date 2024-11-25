@@ -41,7 +41,6 @@ func (e *_EDDSA) Reset() {
 func (e *_EDDSA) Close() {
 	if len(e.PrivateKey) > 0 {
 
-		bytePools[2].put(e.PrivateKey)
 	}
 	return
 }
@@ -53,7 +52,7 @@ func (e *_EDDSA) SignSize() int { return len(e.PrivateKey) }
 func (e *_EDDSA) Algorithm() Algorithm { return EDDSA }
 
 func NewEDDSA[T KeySource](keySource T) (*_EDDSA, error) {
-	var privKey _PrivateKey = bytePools[2].get()
+	var privKey _PrivateKey = alignSlice(privateKeyLen, 32)
 	if privKey == nil || len(privKey) == 0 {
 		return nil, ErrCannotGetObjFromPool
 	}
@@ -139,7 +138,7 @@ func (e *_EDDSA) Verify(payload []byte, sig []byte) bool {
 		return false
 	}
 
-	return __Verify__(e.PublicKey, payload, sig)
+	return Verify__(e.PublicKey, payload, sig)
 }
 
 func GenerateEDDSARandom(rand io.Reader) (_PrivateKey, error) {
@@ -147,14 +146,13 @@ func GenerateEDDSARandom(rand io.Reader) (_PrivateKey, error) {
 		rand = cryptorand.Reader
 	}
 
-	var seed = bytePools[1].get()
+	var seed = alignArray_32(32)
 	if _, err := io.ReadFull(rand, seed[:]); err != nil {
 		return nil, err
 	}
 
 	privateKey := NewKeyFromSeed(seed[:])
 
-	bytePools[1].put(seed)
 	return privateKey, nil
 
 }

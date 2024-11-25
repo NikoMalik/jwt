@@ -23,6 +23,121 @@ func TestGenerateKey(t *testing.T) {
 	}
 }
 
+func TestEmptyMessage(t *testing.T) {
+	publicKey, privateKey, err := __generateKey__(rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey failed: %v", err)
+	}
+
+	message := []byte("") // Empty message
+
+	// Sign the empty message
+	signature := Sign(privateKey, message)
+
+	// Verify the signature of the empty message
+	if !Verify__(publicKey, message, signature) {
+		t.Errorf("Signature verification failed for empty message")
+	}
+}
+
+func TestInvalidPrivateKey(t *testing.T) {
+	publicKey, _, err := __generateKey__(rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey failed: %v", err)
+	}
+
+	// Use a different invalid private key
+	invalidPrivateKey := [64]byte{
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+		11, 12, 13, 14, 15, 16, 17, 18,
+		19, 20, 21, 22, 23, 24, 25, 26,
+		27, 28, 29, 30, 31, 32, 33, 34,
+		35, 36, 37, 38, 39, 40, 41, 42,
+		43, 44, 45, 46, 47, 48, 49, 50,
+		51, 52, 53, 54, 55, 56, 57, 58,
+		59, 60, 61, 62, 63,
+	}
+
+	message := []byte("Test message")
+	signature := Sign(invalidPrivateKey[:], message)
+
+	// Verify with the valid public key
+	if Verify__(publicKey, message, signature) {
+		t.Errorf("Signature verification succeeded with invalid private key")
+	}
+}
+
+func TestVerifyWithDifferentPublicKey(t *testing.T) {
+	_, privateKey, err := __generateKey__(rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey failed: %v", err)
+	}
+
+	publickey2 := []byte("jjfkajfkakjgklajffffffffffffffff")
+
+	message := []byte("Test message")
+
+	// Sign the message with the first private key
+	signature := Sign(privateKey, message)
+
+	// Verify the signature with the second public key (should fail)
+	isValid := Verify__(publickey2, message, signature)
+	if isValid {
+		t.Errorf("Signature verification succeeded with a different public key")
+	} else {
+		t.Logf("Signature verification correctly failed with a different public key")
+	}
+}
+
+func TestAlias(t *testing.T) {
+	public, private, _ := __generateKey__(nil)
+
+	message := []byte("test message")
+	sig := Sign(private, message)
+	if !Verify__(public, message, sig) {
+		t.Errorf("valid signature rejected")
+	}
+}
+
+func TestMultipleKeyPairs(t *testing.T) {
+	// Generate the first key pair
+	publicKey1, privateKey1, err := __generateKey__(rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey failed: %v", err)
+	}
+
+	// Generate the second key pair
+	publicKey2, privateKey2, err := __generateKey__(rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey failed: %v", err)
+	}
+
+	message := []byte("Test message")
+
+	// Sign the message with both private keys
+	signature1 := Sign(privateKey1, message)
+
+	signature2 := Sign(privateKey2, message)
+
+	// Verify the first signature with the first public key
+	if !Verify__(publicKey1, message, signature1) {
+		t.Errorf("Signature verification failed for first key pair")
+	}
+
+	// Verify the second signature with the second public key
+	if !Verify__(publicKey2, message, signature2) {
+		t.Errorf("Signature verification failed for second key pair")
+	}
+
+	// Ensure the signatures don't match with the wrong public keys
+	if Verify__(publicKey2, message, signature1) {
+		t.Errorf("Signature verification succeeded with wrong public key")
+	}
+	if Verify__(publicKey1, message, signature2) {
+		t.Errorf("Signature verification succeeded with wrong public key")
+	}
+}
+
 // TestSignAndVerify tests signing a message and verifying the signature.
 func TestSignAndVerify(t *testing.T) {
 	// Generate a key pair
@@ -35,13 +150,10 @@ func TestSignAndVerify(t *testing.T) {
 	message := []byte("Test message for signing")
 
 	// Sign the message
-	signature, err := privateKey.__Sign__(rand.Reader, message, &_Options{Hash: crypto.Hash(0)})
-	if err != nil {
-		t.Fatalf("Signing failed: %v", err)
-	}
+	signature := Sign(privateKey, message)
 
 	// Verify the signature
-	if !__Verify__(publicKey, message, signature) {
+	if !Verify__(publicKey, message, signature) {
 		t.Errorf("Signature verification failed")
 	}
 }
@@ -51,7 +163,7 @@ func TestTypeAlias(t *testing.T) {
 
 	message := []byte("test message")
 	sig := Sign(private, message)
-	if !__Verify__(public, message, sig) {
+	if !Verify__(public, message, sig) {
 		t.Errorf("valid signature rejected")
 	}
 }
@@ -69,7 +181,7 @@ func TestSignAndVerifyWithHash(t *testing.T) {
 	signature := Sign(privateKey, hashed[:])
 
 	// Verify the signature using the hashed message
-	if !__Verify__(publicKey, hashed[:], signature) {
+	if !Verify__(publicKey, hashed[:], signature) {
 		t.Errorf("SHA-512 signature verification failed")
 	}
 }
@@ -107,7 +219,7 @@ func TestTamperedMessage(t *testing.T) {
 	// Tamper with the message
 	message[0] ^= 0xFF
 
-	if __Verify__(publicKey, message, signature) {
+	if Verify__(publicKey, message, signature) {
 		t.Errorf("Signature verification succeeded on tampered message")
 	}
 }
@@ -128,7 +240,7 @@ func TestTamperedSignature(t *testing.T) {
 	// Tamper with the signature
 	signature[0] ^= 0xFF
 
-	if __Verify__(publicKey, message, signature) {
+	if Verify__(publicKey, message, signature) {
 		t.Errorf("Signature verification succeeded on tampered signature")
 	}
 }
