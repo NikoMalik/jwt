@@ -118,11 +118,10 @@ const (
 )
 
 type digest struct {
-	_    noCopy
 	h    [8]uint64
 	x    [chunk]byte // chunk 128
-	nx   int
 	len  uint64
+	nx   int
 	size int // size224, size256, size384, or size512
 }
 
@@ -327,7 +326,7 @@ func _sum512_(data []byte) (b [64]byte) {
 
 	d := &digest{size: size512}
 	d.Reset()
-	d.Write(data)
+	_, _ = d.Write(data)
 
 	return *(*[64]byte)(d.Sum(b[:0]))
 }

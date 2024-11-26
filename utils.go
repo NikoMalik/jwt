@@ -125,6 +125,7 @@ func reset_32(slice []byte) []byte {
 	return slice
 }
 
+//go:noinline
 //go:nosplit
 func alignArray_32(alignment int) [32]byte {
 	var buf [32 + 31]byte // 31 max padding
@@ -140,6 +141,7 @@ func alignArray_32(alignment int) [32]byte {
 	return *(*[32]byte)(unsafe.Pointer(alignedPtr))
 }
 
+//go:noinline
 //go:nosplit
 func alignArray_64(alignment int) [64]byte {
 
@@ -157,6 +159,7 @@ func alignArray_64(alignment int) [64]byte {
 	return *(*[64]byte)(unsafe.Pointer(alignedPtr))
 }
 
+//go:noinline
 func alignSlice(size int, alignment int) []byte {
 	buf := make([]byte, size+alignment)
 	offset := int(uintptr(unsafe.Pointer(&buf[0])) % uintptr(alignment))
@@ -166,6 +169,7 @@ func alignSlice(size int, alignment int) []byte {
 	return buf[alignment-offset : alignment-offset+size]
 }
 
+//go:noinline
 func alignGeneric[T any](size int, alignment int) []T {
 	buf := make([]T, size+alignment)
 	offset := int(uintptr(unsafe.Pointer(&buf[0])) % uintptr(alignment))

@@ -211,7 +211,7 @@ TEXT ·copy_AVX2_64(SB), NOSPLIT , $0-48
     MOVQ src_data+24(FP), SI
     MOVQ src_len+32(FP),      BX
     XORQ AX, AX
-
+  
 
 ALIGN_CHECK:
     CMPQ DI,$31 
@@ -262,6 +262,7 @@ USE_UNALIGNED:
     //CMPQ AX, BX 
     //JL LOOP 
     //RET
+
 
     VMOVDQU 0(SI)(AX*1), Y0 
 

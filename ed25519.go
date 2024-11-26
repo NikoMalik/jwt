@@ -63,7 +63,7 @@ const (
 )
 
 // / 1024,512,341,256,128
-var sha512Pool = newObjPool[hash.Hash](128, 6, func() hash.Hash {
+var sha512Pool = newObjPool[hash.Hash](8, 4, func() hash.Hash {
 	return _Newi_()
 },
 )
@@ -85,7 +85,7 @@ func (p _PrivateKey) Public() _PublicKey {
 func NewKeyFromSeed(seed []byte) _PrivateKey {
 
 	// Outline the function body so that the returned key can be stack-allocated.
-	var privateKey = alignSlice(privateKeyLen, 32)
+	var privateKey = alignArray_64(32)
 
 	newKeyFromSeed(privateKey[:], seed)
 	// bytePools[2].clear()
@@ -270,73 +270,6 @@ func sign(signature, privateKey, message []byte, domPrefix, context string) {
 	sha512Pool.put(kh)
 
 	S := edwards25519.NewScalar().MultiplyAdd(k, s, r)
-	// RBytes := R.Bytes()
-	// SBytes := S.Bytes()
-	// signature[0] = RBytes[0]
-	// signature[1] = RBytes[1]
-	// signature[2] = RBytes[2]
-	// signature[3] = RBytes[3]
-	// signature[4] = RBytes[4]
-	// signature[5] = RBytes[5]
-	// signature[6] = RBytes[6]
-	// signature[7] = RBytes[7]
-	// signature[8] = RBytes[8]
-	// signature[9] = RBytes[9]
-	// signature[10] = RBytes[10]
-	// signature[11] = RBytes[11]
-	// signature[12] = RBytes[12]
-	// signature[13] = RBytes[13]
-	// signature[14] = RBytes[14]
-	// signature[15] = RBytes[15]
-	// signature[16] = RBytes[16]
-	// signature[17] = RBytes[17]
-	// signature[18] = RBytes[18]
-	// signature[19] = RBytes[19]
-	// signature[20] = RBytes[20]
-	// signature[21] = RBytes[21]
-	// signature[22] = RBytes[22]
-	// signature[23] = RBytes[23]
-	// signature[24] = RBytes[24]
-	// signature[25] = RBytes[25]
-	// signature[26] = RBytes[26]
-	// signature[27] = RBytes[27]
-	// signature[28] = RBytes[28]
-	// signature[29] = RBytes[29]
-	// signature[30] = RBytes[30]
-	// signature[31] = RBytes[31]
-	// signature[32] = SBytes[0]
-	// signature[33] = SBytes[1]
-	// signature[34] = SBytes[2]
-	// signature[35] = SBytes[3]
-	// signature[36] = SBytes[4]
-	// signature[37] = SBytes[5]
-	// signature[38] = SBytes[6]
-	// signature[39] = SBytes[7]
-	// signature[40] = SBytes[8]
-	// signature[41] = SBytes[9]
-	// signature[42] = SBytes[10]
-	// signature[43] = SBytes[11]
-	// signature[44] = SBytes[12]
-	// signature[45] = SBytes[13]
-	// signature[46] = SBytes[14]
-	// signature[47] = SBytes[15]
-	// signature[48] = SBytes[16]
-	// signature[49] = SBytes[17]
-	// signature[50] = SBytes[18]
-	// signature[51] = SBytes[19]
-	// signature[52] = SBytes[20]
-	// signature[53] = SBytes[21]
-	// signature[54] = SBytes[22]
-	// signature[55] = SBytes[23]
-	// signature[56] = SBytes[24]
-	// signature[57] = SBytes[25]
-	// signature[58] = SBytes[26]
-	// signature[59] = SBytes[27]
-	// signature[60] = SBytes[28]
-	// signature[61] = SBytes[29]
-	// signature[62] = SBytes[30]
-	// signature[63] = SBytes[31]
-	//
 
 	copy_AVX2_64(signature[:32], R.Bytes())
 	copy_AVX2_64(signature[32:], S.Bytes())
