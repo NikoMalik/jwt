@@ -28,8 +28,8 @@ func cop_32(src []byte, src2 []byte) int {
 	if useAVX2 {
 		return copy_AVX2_32(src, src2)
 	}
-	if useAVX2 && isZen1() {
-		fmt.Println("zen1") // using only for debug delete later
+	if useAVX2 && isZen1() || useAVX2 && isZen2() {
+		fmt.Println("zen1 or zen2") // using only for debug delete later
 		return copy(src, src2)
 	}
 	return copy(src, src2)
