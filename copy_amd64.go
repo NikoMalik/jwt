@@ -2,7 +2,11 @@
 
 package jwt
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/klauspost/cpuid/v2"
+)
 
 //test with gcflags="-S"
 
@@ -28,7 +32,7 @@ func cop_32(src []byte, src2 []byte) int {
 	if useAVX2 {
 		return copy_AVX2_32(src, src2)
 	}
-	if useAVX2 && isZen1() || useAVX2 && isZen2() {
+	if useAVX2 && cpuid.CPU.VendorID == cpuid.AMD {
 		fmt.Println("zen1 or zen2") // using only for debug delete later
 		return copy(src, src2)
 	}
