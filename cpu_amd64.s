@@ -1,7 +1,7 @@
 #include "textflag.h"
 
 
-TEXT ·CpuId(SB),$0-12
+TEXT ·CpuId(SB),NOSPLIT,$0-12
         MOVL ax+8(FP), AX
         CPUID
         MOVQ info+0(FP), DI

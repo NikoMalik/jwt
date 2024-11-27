@@ -205,7 +205,7 @@ USE_UNALIGNED:
 	JL   USE_UNALIGNED
 	RET
 
-
+//this functions too much slower in zen1  processors 
 TEXT ·copy_AVX2_64(SB), NOSPLIT , $0-48
     MOVQ dst_data+0(FP),  DI
     MOVQ src_data+24(FP), SI

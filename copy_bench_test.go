@@ -127,6 +127,17 @@ func BenchmarkCopyAVX2_64(b *testing.B) {
 	// fmt.Println(src)
 }
 
+func BenchmarkZEN1_32(b *testing.B) {
+	src := alignSlice(32, 16)
+	dst := alignSlice(len(src), 16)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		cop_32(src, dst)
+	}
+	// fmt.Println(src)
+}
+
 func BenchmarkStandardCopy_32(b *testing.B) {
 	src := alignSlice(32, 32)
 	dst := alignSlice(len(src), 32)
