@@ -319,7 +319,6 @@ func (d *digest) BlockSize() int { return chunk } // blocksize 128
 
 func (d *digest) Size() int {
 	return d.size
-
 }
 
 func _sum512_(data []byte) (b [64]byte) {

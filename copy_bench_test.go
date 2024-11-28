@@ -144,7 +144,7 @@ func BenchmarkStandardCopy_32(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		copy(src, dst)
+		memmoveCopy(src, dst)
 	}
 	// fmt.Println(src)
 }

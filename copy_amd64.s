@@ -171,10 +171,10 @@ GLOBL P_Mask(SB),RODATA|NOPTR,  $32
 //    RET
 
 //if len < 32, dont' use avx2
-TEXT ·copy_AVX2_32(SB), NOSPLIT , $0-48
-	MOVQ dst_data+0(FP),  DI
-	MOVQ src_data+24(FP), SI
-	MOVQ src_len+32(FP),      BX
+TEXT ·copy_AVX2_32(SB), NOSPLIT , $0
+	MOVD dst_data+0(FP),  DI
+	MOVD src_data+24(FP), SI
+	MOVD src_len+32(FP),      BX
     XORQ AX, AX
 
 
@@ -194,19 +194,21 @@ ALIGNED_LOOP:
     JL   ALIGNED_LOOP
     RET
     
+    
 
 USE_UNALIGNED:
-	VMOVDQU 0(SI)(AX*1), Y0
+    VMOVDQU 0(SI)(AX*1), Y0
 	VMOVDQU Y0, 0(DI)(AX*1)
 
     
 	ADDQ $32, AX
 	CMPQ AX, BX
 	JL   USE_UNALIGNED
+   
 	RET
 
 //this functions too much slower in zen1  processors 
-TEXT ·copy_AVX2_64(SB), NOSPLIT , $0-48
+TEXT ·copy_AVX2_64(SB), NOSPLIT , $0
     MOVQ dst_data+0(FP),  DI
     MOVQ src_data+24(FP), SI
     MOVQ src_len+32(FP),      BX
@@ -282,7 +284,7 @@ USE_UNALIGNED:
 
 
 
-TEXT ·copy_AVX2_128(SB), NOSPLIT , $0-48
+TEXT ·copy_AVX2_128(SB), NOSPLIT , $0
     MOVQ dst_data+0(FP),  DI
     MOVQ src_data+24(FP), SI
     MOVQ src_len+32(FP),      BX
@@ -340,7 +342,7 @@ USE_UNALIGNED:
     RET      
 
 
-TEXT ·copy_more_512(SB),NOSPLIT ,$0-48
+TEXT ·copy_more_512(SB),NOSPLIT ,$0
     MOVQ dst_data+0(FP),  DI
     MOVQ src_data+24(FP), SI
     MOVQ src_len+32(FP),      BX
