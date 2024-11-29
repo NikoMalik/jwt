@@ -11,6 +11,9 @@ func _copy_(src []byte, src2 []byte) int
 func copy_AVX2_32(src []byte, src2 []byte) int
 
 //go:noescape
+func copy_AMD_AVX2_32(src []byte, src2 []byte) int
+
+//go:noescape
 func copy_AVX2_64(src []byte, src2 []byte) int
 
 //go:noescape
@@ -24,7 +27,7 @@ func copy_more_512(src []byte, src2 []byte) int
 
 func cop_32(src []byte, src2 []byte) int {
 
-	return copyFunc(src, src2)
+	return memmoveCopy(src, src2)
 }
 func cop_64(src []byte, src2 []byte) int {
 	if useAVX2 {

@@ -10,7 +10,7 @@ import (
 	"golang.org/x/sys/cpu"
 )
 
-var useAVX2 = cpu.X86.HasAVX2 && cpu.X86.HasBMI1 && cpu.X86.HasBMI2
+var useAVX2 = cpu.X86.HasAVX2 && cpu.X86.HasBMI2
 
 //go:noescape
 func blockAVX2(dig *digest, p []byte)
@@ -19,9 +19,7 @@ func blockAVX2(dig *digest, p []byte)
 func blockAMD64(dig *digest, p []byte)
 
 func block(dig *digest, p []byte) {
-	if useAVX2 {
-		blockAVX2(dig, p)
-	} else {
-		blockAMD64(dig, p)
-	}
+
+	blockAVX2(dig, p)
+
 }

@@ -83,17 +83,19 @@ func (p _PrivateKey) Public() _PublicKey {
 }
 
 func NewKeyFromSeed(seed []byte) _PrivateKey {
+	_ = seed[31]
 
 	// Outline the function body so that the returned key can be stack-allocated.
 	var privateKey = alignArray_64(32)
 
 	newKeyFromSeed(privateKey[:], seed)
-	// bytePools[2].clear()
 
 	return privateKey[:]
 }
 
 func newKeyFromSeed(privateKey []byte, seed []byte) {
+	_ = privateKey[63]
+	_ = seed[31]
 	if l := len(seed); l != seedLen {
 		panic("ed25519: bad seed length: " + strconv.Itoa(l))
 	}
@@ -110,7 +112,7 @@ func newKeyFromSeed(privateKey []byte, seed []byte) {
 	//fmt.Println(len(A.Bytes())) // 32
 
 	copy_AVX2_64(privateKey, seed)
-	copy_AVX2_64(privateKey[32:], A.Bytes())
+	copy_AVX2_32(privateKey[32:], A.Bytes())
 }
 
 func (priv _PrivateKey) __Sign__(rand io.Reader, message []byte, opts crypto.SignerOpts) (signature []byte, err error) {
@@ -150,6 +152,8 @@ func (priv _PrivateKey) __Sign__(rand io.Reader, message []byte, opts crypto.Sig
 }
 
 func Sign(privateKey _PrivateKey, message []byte) []byte {
+	_ = privateKey[63]
+
 	// Outline the function body so that the returned signature can be
 	// stack-allocated.
 	var signature = alignSlice(signatureSize, 32)
@@ -166,6 +170,7 @@ func Verify__(publicKey _PublicKey, message, sig []byte) bool {
 }
 
 func verify(publicKey _PublicKey, message, sig []byte, domPrefix, context string) bool {
+	_ = publicKey[31]
 	if l := len(publicKey); l != publicKeyLen {
 		panic("ed25519: bad public key length: " + strconv.Itoa(l))
 	}
@@ -217,6 +222,9 @@ func verify(publicKey _PublicKey, message, sig []byte, domPrefix, context string
 }
 
 func sign(signature, privateKey, message []byte, domPrefix, context string) {
+	_ = signature[63]
+	_ = privateKey[63]
+
 	if l := len(privateKey); l != privateKeyLen {
 		panic("ed25519: bad private key length: " + strconv.Itoa(l))
 	}
@@ -271,8 +279,8 @@ func sign(signature, privateKey, message []byte, domPrefix, context string) {
 
 	S := edwards25519.NewScalar().MultiplyAdd(k, s, r)
 
-	copy_AVX2_64(signature[:32], R.Bytes())
-	copy_AVX2_64(signature[32:], S.Bytes())
+	copy_AVX2_32(signature[:32], R.Bytes())
+	copy_AVX2_32(signature[32:], S.Bytes())
 }
 
 func __VerifyWithOptions__(publicKey _PublicKey, message, sig []byte, opts *_Options) error {
@@ -343,18 +351,11 @@ func __generateKey__(rand io.Reader) (_PublicKey, _PrivateKey, error) {
 	return publicKey[:], privateKey, nil
 }
 
-func b_32(s []byte) *[32]byte {
-	if len(s) < 32 {
-		panic("b_32 must be 32 slice")
-	}
-
-	return (*[32]byte)(unsafe.Pointer(&s))
+func b_32(s []byte) [32]byte {
+	return *(*[32]byte)(unsafe.Pointer(&s))
 }
 
-func b_64(s []byte) *[64]byte {
-	if len(s) < 64 {
-		panic("b_64 must be 64 slice")
-	}
+func b_64(s []byte) [64]byte {
 
-	return (*[64]byte)(unsafe.Pointer(&s))
+	return *(*[64]byte)(unsafe.Pointer(&s))
 }

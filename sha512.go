@@ -120,8 +120,8 @@ const (
 type digest struct {
 	h    [8]uint64
 	x    [chunk]byte // chunk 128
-	len  uint64
 	nx   int
+	len  uint64
 	size int // size224, size256, size384, or size512
 }
 
@@ -197,14 +197,14 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 		n := copy(d.x[d.nx:], p)
 		d.nx += n
 		if d.nx == chunk {
-			block(d, d.x[:])
+			blockAVX2(d, d.x[:])
 			d.nx = 0
 		}
 		p = p[n:]
 	}
 	if len(p) >= chunk {
 		n := len(p) &^ (chunk - 1)
-		block(d, p[:n])
+		blockAVX2(d, p[:n])
 		p = p[n:]
 	}
 	if len(p) > 0 {
@@ -278,6 +278,7 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	b, d.h[6] = consumeUint64(b)
 	b, d.h[7] = consumeUint64(b)
 	b = b[copy(d.x[:], b):]
+
 	b, d.len = consumeUint64(b)
 	d.nx = int(d.len % chunk)
 	return nil

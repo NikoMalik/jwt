@@ -133,7 +133,7 @@ func BenchmarkZEN1_32(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		cop_32(src, dst)
+		copy_AMD_AVX2_32(src, dst)
 	}
 	// fmt.Println(src)
 }
