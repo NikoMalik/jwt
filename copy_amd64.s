@@ -170,11 +170,15 @@ GLOBL P_Mask(SB),RODATA|NOPTR,  $32
 //    MOVBQZX AL, AX               
 //    RET
 
+
+
+
+
 //if len < 32, dont' use avx2
 TEXT ·copy_AVX2_32(SB), NOSPLIT , $0
-	MOVD dst_data+0(FP),  DI
-	MOVD src_data+24(FP), SI
-	MOVD src_len+32(FP),      BX
+	MOVQ dst_data+0(FP),  DI
+	MOVQ src_data+24(FP), SI
+	MOVQ src_len+32(FP),      BX
     XORQ AX, AX
 
 
@@ -314,7 +318,7 @@ USE_UNALIGNED:
     VMOVDQU 16(SI)(AX*1), X2
     VMOVDQU X0, 0(DI)(AX*1)
     VMOVDQU X1, 16(DI)(AX*1)
-    VMOVDQU X2, 16(DI)(AX*1)
+    VMOVDQU Y2, 16(DI)(AX*1)
     ADDQ $32, AX
     CMPQ AX, BX
     JL USE_UNALIGNED
@@ -380,23 +384,210 @@ USE_UNALIGNED:
 
     RET      
 
+TEXT ·copy_AVX2_256(SB),NOSPLIT ,$0
+    MOVQ dst_data+0(FP),  DI
+    MOVQ src_data+24(FP), SI
+    MOVQ src_len+32(FP),      BX
+    XORQ AX,AX
+    
 
-TEXT ·copy_more_512(SB),NOSPLIT ,$0
+ALIGN_CHECK:
+    CMPQ BX, AX              // Check if all data has been processed
+    JLE DONE                  // If AX >= BX, exit the loop
+
+
+    CMPQ DI,$31 
+    JNZ USE_UNALIGNED
+    CMPQ SI,$31 
+    JNZ USE_UNALIGNED
+    JMP ALIGNED_LOOP
+
+ALIGNED_LOOP:
+    // 32 * 8
+    VMOVDQA 0(SI)(AX*1), Y0        
+    VMOVDQA 32(SI)(AX*1), Y1
+    VMOVDQA 64(SI)(AX*1), Y2
+    VMOVDQA 96(SI)(AX*1), Y3
+    VMOVDQA 128(SI)(AX*1), Y4
+    VMOVDQA 160(SI)(AX*1), Y5
+    VMOVDQA 192(SI)(AX*1), Y6
+    VMOVDQA 224(SI)(AX*1), Y7
+    VMOVDQA 256(SI)(AX*1), Y8
+
+    // save 256 bytes
+    VMOVDQA Y0, 0(DI)(AX*1)       
+    VMOVDQA Y1, 32(DI)(AX*1)
+    VMOVDQA Y2, 64(DI)(AX*1)
+    VMOVDQA Y3, 96(DI)(AX*1)
+    VMOVDQA Y4, 128(DI)(AX*1)
+    VMOVDQA Y5, 160(DI)(AX*1)
+    VMOVDQA Y6, 192(DI)(AX*1)
+    VMOVDQA Y7, 224(DI)(AX*1)
+    VMOVDQA Y8, 256(DI)(AX*1)
+   
+    // count 256 index
+    ADDQ $256, AX
+
+    // check 
+    CMPQ AX, BX
+    JL ALIGNED_LOOP
+
+    RET
+
+USE_UNALIGNED: // load 256 byte (4 * 64 byte) for once
+    VMOVDQU 0(SI)(AX*1), Y0
+    VMOVDQU 32(SI)(AX*1), Y1
+    VMOVDQU 64(SI)(AX*1), Y2
+    VMOVDQU 96(SI)(AX*1), Y3
+    VMOVDQU 128(SI)(AX*1), Y4
+    VMOVDQU 160(SI)(AX*1), Y5
+    VMOVDQU 192(SI)(AX*1), Y6
+    VMOVDQU 224(SI)(AX*1), Y7
+    VMOVDQU 256(SI)(AX*1), Y8
+   
+    // save 256 bytes
+    VMOVDQU Y0, 0(DI)(AX*1)       
+    VMOVDQU Y1, 32(DI)(AX*1)
+    VMOVDQU Y2, 64(DI)(AX*1)
+    VMOVDQU Y3, 96(DI)(AX*1)
+    VMOVDQU Y4, 128(DI)(AX*1)
+    VMOVDQU Y5, 160(DI)(AX*1)
+    VMOVDQU Y6, 192(DI)(AX*1)
+    VMOVDQU Y7, 224(DI)(AX*1)
+    VMOVDQU Y8, 256(DI)(AX*1)
+   
+    // count 256 index
+    ADDQ $256, AX
+
+    // check 
+    CMPQ AX, BX
+    JL USE_UNALIGNED
+    RET
+
+DONE:
+    RET
+
+
+
+TEXT ·copy_AVX2_512(SB),NOSPLIT ,$0
     MOVQ dst_data+0(FP),  DI
     MOVQ src_data+24(FP), SI
     MOVQ src_len+32(FP),      BX
     XORQ AX,AX
 
-
-
 ALIGN_CHECK:
+    CMPQ BX, AX              // Check if all data has been processed
+    JLE DONE                  // If AX >= BX, exit the loop
     CMPQ DI, $31 
     JNZ USE_UNALIGNED
     CMPQ SI,$31 
     JNZ USE_UNALIGNED
     JMP ALIGNED_LOOP
 
+ALIGNED_LOOP:
+    // Load 512 bytes in chunks, given 15 registers
+    VMOVDQA 0(SI)(AX*1), Y0        
+    VMOVDQA 32(SI)(AX*1), Y1
+    VMOVDQA 64(SI)(AX*1), Y2
+    VMOVDQA 96(SI)(AX*1), Y3
+    VMOVDQA 128(SI)(AX*1), Y4
+    VMOVDQA 160(SI)(AX*1), Y5
+    VMOVDQA 192(SI)(AX*1), Y6
+    VMOVDQA 224(SI)(AX*1), Y7
+    VMOVDQA 256(SI)(AX*1), Y8
 
+
+
+    VMOVDQA Y0, 0(DI)(AX*1)       
+    VMOVDQA Y1, 32(DI)(AX*1)
+    VMOVDQA Y2, 64(DI)(AX*1)
+    VMOVDQA Y3, 96(DI)(AX*1)
+    VMOVDQA Y4, 128(DI)(AX*1)
+    VMOVDQA Y5, 160(DI)(AX*1)
+    VMOVDQA Y6, 192(DI)(AX*1)
+    VMOVDQA Y7, 224(DI)(AX*1)
+    VMOVDQA Y8, 256(DI)(AX*1)
+
+
+    ADDQ $512, AX                
+    CMPQ AX, BX
+
+    JL ALIGNED_LOOP
+   
+
+    RET
+
+USE_UNALIGNED: 
+    // Load 512 bytes in chunks for unaligned memory
+    VMOVDQU 0(SI)(AX*1), Y0
+    VMOVDQU 32(SI)(AX*1), Y1
+    VMOVDQU 64(SI)(AX*1), Y2
+    VMOVDQU 96(SI)(AX*1), Y3
+    VMOVDQU 128(SI)(AX*1), Y4
+    VMOVDQU 160(SI)(AX*1), Y5
+    VMOVDQU 192(SI)(AX*1), Y6
+    VMOVDQU 224(SI)(AX*1), Y7
+    VMOVDQU 256(SI)(AX*1), Y8
+    VMOVDQA 288(SI)(AX*1), Y9
+    VMOVDQA 320(SI)(AX*1), Y10
+    VMOVDQA 352(SI)(AX*1), Y11
+    VMOVDQA 384(SI)(AX*1), Y12
+    VMOVDQA 416(SI)(AX*1), Y13
+    VMOVDQA 448(SI)(AX*1), Y14
+    VMOVDQA 480(SI)(AX*1), Y15
+
+
+
+
+
+
+
+  
+
+    // Store 512 bytes for unaligned memory
+    VMOVDQU Y0, 0(DI)(AX*1)
+    VMOVDQU Y1, 32(DI)(AX*1)
+    VMOVDQU Y2, 64(DI)(AX*1)
+    VMOVDQU Y3, 96(DI)(AX*1)
+    VMOVDQU Y4, 128(DI)(AX*1)
+    VMOVDQU Y5, 160(DI)(AX*1)
+    VMOVDQU Y6, 192(DI)(AX*1)
+    VMOVDQU Y7, 224(DI)(AX*1)
+    VMOVDQU Y8, 256(DI)(AX*1)
+    VMOVDQU Y9, 288(DI)(AX*1)
+    VMOVDQU Y10, 320(DI)(AX*1)
+    VMOVDQU Y11, 352(DI)(AX*1)
+    VMOVDQU Y12, 384(DI)(AX*1)
+    VMOVDQU Y13, 416(DI)(AX*1)
+    VMOVDQU Y14, 448(DI)(AX*1)
+    VMOVDQU Y15, 480(DI)(AX*1)
+ 
+    ADDQ $512, AX
+    CMPQ AX, BX
+    JL USE_UNALIGNED
+    RET
+
+DONE:
+    RET
+
+//still thinking about this function which copy 1024 bytes of data
+TEXT ·copy_AVX2_1024(SB), NOSPLIT, $0
+    MOVQ dst_data+0(FP), DI
+    MOVQ src_data+24(FP), SI
+    MOVQ src_len+32(FP), BX
+    XORQ AX, AX
+
+
+LOOP_START:
+    ;CMPQ BX,AX              // Check if all data has been processed
+    ;JLE DONE                  // If AX >= BX, exit the loop
+    ;
+    // Check for alignment
+    CMPQ DI, $31
+    JNZ USE_UNALIGNED
+    CMPQ SI, $31
+    JNZ USE_UNALIGNED
+    JMP ALIGNED_LOOP
 
 ALIGNED_LOOP:
     VMOVDQA 0(SI)(AX*1), Y0        
@@ -407,6 +598,14 @@ ALIGNED_LOOP:
     VMOVDQA 160(SI)(AX*1), Y5
     VMOVDQA 192(SI)(AX*1), Y6
     VMOVDQA 224(SI)(AX*1), Y7
+    VMOVDQA 256(SI)(AX*1), Y8
+    VMOVDQA 288(SI)(AX*1), Y9
+    VMOVDQA 320(SI)(AX*1), Y10
+    VMOVDQA 352(SI)(AX*1), Y11
+    VMOVDQA 384(SI)(AX*1), Y12
+    VMOVDQA 416(SI)(AX*1), Y13
+    VMOVDQA 448(SI)(AX*1), Y14
+    VMOVDQA 480(SI)(AX*1), Y15
 
     VMOVDQA Y0, 0(DI)(AX*1)       
     VMOVDQA Y1, 32(DI)(AX*1)
@@ -416,14 +615,25 @@ ALIGNED_LOOP:
     VMOVDQA Y5, 160(DI)(AX*1)
     VMOVDQA Y6, 192(DI)(AX*1)
     VMOVDQA Y7, 224(DI)(AX*1)
+    VMOVDQA Y8, 256(DI)(AX*1)
+    VMOVDQA Y9, 288(DI)(AX*1)
+    VMOVDQA Y10, 320(DI)(AX*1)
+    VMOVDQA Y11, 352(DI)(AX*1)
+    VMOVDQA Y12, 384(DI)(AX*1)
+    VMOVDQA Y13, 416(DI)(AX*1)
+    VMOVDQA Y14, 448(DI)(AX*1)
+    VMOVDQA Y15, 480(DI)(AX*1)
 
-    ADDQ $256, AX                
+    ADDQ $512, AX            
+    JLE ALIGNED_LOOP
+
     CMPQ AX, BX
     JL ALIGNED_LOOP
-
     RET
 
-USE_UNALIGNED: // load 512 byte (4 * 64 byte) for once
+
+
+USE_UNALIGNED:
     VMOVDQU 0(SI)(AX*1), Y0
     VMOVDQU 32(SI)(AX*1), Y1
     VMOVDQU 64(SI)(AX*1), Y2
@@ -432,7 +642,14 @@ USE_UNALIGNED: // load 512 byte (4 * 64 byte) for once
     VMOVDQU 160(SI)(AX*1), Y5
     VMOVDQU 192(SI)(AX*1), Y6
     VMOVDQU 224(SI)(AX*1), Y7
-
+    VMOVDQU 256(SI)(AX*1), Y8
+    VMOVDQU 288(SI)(AX*1), Y9
+    VMOVDQU 320(SI)(AX*1), Y10
+    VMOVDQU 352(SI)(AX*1), Y11
+    VMOVDQU 384(SI)(AX*1), Y12
+    VMOVDQU 416(SI)(AX*1), Y13
+    VMOVDQU 448(SI)(AX*1), Y14
+    VMOVDQU 480(SI)(AX*1), Y15
 
     VMOVDQU Y0, 0(DI)(AX*1)
     VMOVDQU Y1, 32(DI)(AX*1)
@@ -442,46 +659,28 @@ USE_UNALIGNED: // load 512 byte (4 * 64 byte) for once
     VMOVDQU Y5, 160(DI)(AX*1)
     VMOVDQU Y6, 192(DI)(AX*1)
     VMOVDQU Y7, 224(DI)(AX*1)
+    VMOVDQU Y8, 256(DI)(AX*1)
+    VMOVDQU Y9, 288(DI)(AX*1)
+    VMOVDQU Y10, 320(DI)(AX*1)
+    VMOVDQU Y11, 352(DI)(AX*1)
+    VMOVDQU Y12, 384(DI)(AX*1)
+    VMOVDQU Y13, 416(DI)(AX*1)
+    VMOVDQU Y14, 448(DI)(AX*1)
+    VMOVDQU Y15, 480(DI)(AX*1)
 
-    ADDQ $256, AX
-    CMPQ AX, BX
+    ADDQ $512, AX         
+    
+    JLE USE_UNALIGNED
+    CMPQ AX,BX 
     JL USE_UNALIGNED
     RET
+    
 
-
-  
-
-
-
-
-TEXT ·copy_AVX2_256(SB), NOSPLIT , $0-24 // TODO: finnaly this sh
-    MOVQ dst_data+0(FP),  DI
-    MOVQ src_data+24(FP), SI
-    MOVQ src_len+32(FP),      BX
-    XORQ AX,AX
-
-LOOP:
-    VMOVDQU 0(SI)(AX*1), Y0
-    VMOVDQU Y0, 0(DI)(AX*1)
-    ADDQ $128,AX 
-    CMPQ AX, BX
-    JGE END
-
-    VMOVDQU 0(SI)(AX*1), Y1
-    VMOVDQU Y1, 0(DI)(AX*1)
-    ADDQ $128,AX
-    CMPQ AX, BX
-    JL LOOP
-
-    CMPQ AX, BX
-    JL   LOOP
+DONE:
     RET
-END:
-    RET
-
 
 //use from 512
-TEXT ·_copy_(SB),NOSPLIT, $0-48
+TEXT ·_copy_(SB),NOSPLIT, $0
     MOVQ    dst_base+0x00(FP), AX
    	MOVQ    src_base+0x18(FP), CX
 	MOVQ    dst_len+0x08(FP), DX

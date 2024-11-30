@@ -21,9 +21,8 @@ const (
 	MB_8     = 8 << 20   // 8MB
 	MAX_SIZE = GB        // Maximum allowed size
 
-	numPools      = 0x04
-	size_pool     = 0x04
-	cacheLineSize = unsafe.Sizeof(lowlevelfunctions.CacheLinePadding{})
+	numPools  = 0x04
+	size_pool = 0x04
 )
 
 type objectPool[T any] struct {
@@ -36,6 +35,7 @@ type objectPool[T any] struct {
 	currChunk  int32
 	chunkSize  int32
 	cap        int32
+	_          lowlevelfunctions.CacheLinePadding
 }
 
 func (p *objectPool[T]) _t_(ptr uintptr) *T {

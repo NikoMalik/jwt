@@ -23,7 +23,10 @@ func copy_AVX2_128(src []byte, src2 []byte) int
 func copy_AVX2_256(src []byte, src2 []byte) int
 
 //go:noescape
-func copy_more_512(src []byte, src2 []byte) int
+func copy_AVX2_512(src []byte, src2 []byte) int
+
+//go:noescape
+func copy_AVX2_1024(src []byte, src2 []byte) int
 
 func cop_32(src []byte, src2 []byte) int {
 

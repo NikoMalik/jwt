@@ -27,14 +27,13 @@ func BenchmarkOptimizedCopy_1024(b *testing.B) {
 	}
 	// fmt.Println(src)
 }
-
-func BenchmarkAVX2Copy_1024(b *testing.B) {
+func BenchmarkCopy_AVX2_1024(b *testing.B) {
 	src := alignSlice(MB, 32)
 	dst := alignSlice(len(src), 32)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		copy_more_512(src, dst)
+		copy_AVX2_1024(src, dst)
 	}
 	// fmt.Println(src)
 }
@@ -56,7 +55,7 @@ func BenchmarkAVX2Copy_512(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		copy_more_512(src, dst)
+		copy_AVX2_512(src, dst)
 	}
 	// fmt.Println(src)
 }
@@ -89,7 +88,7 @@ func BenchmarkCopyAVX2_256(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		copy_AVX2_256(src, dst)
+		copy_AVX2_128(src, dst)
 	}
 	// fmt.Println(src)
 }

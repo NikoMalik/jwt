@@ -203,14 +203,51 @@ func Test_Copy(t *testing.T) {
 
 	t.Run("avx2 copy more 512", func(t *testing.T) {
 		p := make([]byte, 512)
-
-		for i := range p {
+		for i := 0; i < len(p); i++ {
 			p[i] = byte(i)
 		}
 
 		s := make([]byte, 512)
 
-		copy_more_512(s, p)
+		copy_AVX2_512(s, p)
+
+		if !reflect.DeepEqual(s, p) {
+			t.Errorf("avx copy failed: expected %v, got %v", p, s)
+		}
+
+		t.Log("s", s)
+
+	})
+
+	t.Run("avx2 copy 256 ", func(t *testing.T) {
+		p := make([]byte, 256)
+
+		for i := range p {
+			p[i] = byte(i)
+		}
+
+		s := make([]byte, 256)
+
+		copy_AVX2_256(s, p)
+
+		if !reflect.DeepEqual(s, p) {
+			t.Errorf("avx copy failed: expected %v, got %v", p, s)
+		}
+
+		t.Log(s)
+
+	})
+
+	t.Run("avx2 copy more 1024", func(t *testing.T) {
+		p := make([]byte, 1024)
+
+		for i := range p {
+			p[i] = byte(i)
+		}
+
+		s := make([]byte, 1024)
+
+		copy_AVX2_1024(s, p)
 
 		if !reflect.DeepEqual(s, p) {
 			t.Errorf("avx copy failed: expected %v, got %v", p, s)

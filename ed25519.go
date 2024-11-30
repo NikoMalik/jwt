@@ -32,7 +32,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 import (
-	"bytes"
 	"crypto"
 	"crypto/sha512"
 	"errors"
@@ -42,6 +41,8 @@ import (
 	"unsafe"
 
 	cryptorand "crypto/rand"
+
+	"bytes"
 
 	"filippo.io/edwards25519"
 	lowlevelfunctions "github.com/NikoMalik/low-level-functions"
@@ -156,7 +157,7 @@ func Sign(privateKey _PrivateKey, message []byte) []byte {
 
 	// Outline the function body so that the returned signature can be
 	// stack-allocated.
-	var signature = alignSlice(signatureSize, 32)
+	var signature = alignArray_64(32)
 
 	// fmt.Println(len(signature))
 	sign(signature[:], privateKey, message, domPrefixPure, "")
