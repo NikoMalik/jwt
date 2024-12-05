@@ -1,9 +1,9 @@
 package jwt
 
 import (
-	json "github.com/goccy/go-json"
-
 	"time"
+
+	"github.com/bytedance/sonic"
 )
 
 var since1970 = time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC)
@@ -27,14 +27,16 @@ func NumericDate(tt time.Time) *JWTTime {
 
 func (t *JWTTime) MarshalJSON() ([]byte, error) {
 	if t.Before(since1970) {
-		return []byte("NULL"), nil
+		return []byte("null"), nil
 	}
-	return json.Marshal(t.Unix())
+
+	return sonic.Marshal(t.Unix())
 }
 
 func (t *JWTTime) UnmarshalJSON(b []byte) error {
 	var unix int64
-	if err := json.Unmarshal(b, &unix); err != nil {
+
+	if err := sonic.Unmarshal(b, &unix); err != nil {
 		return err
 	}
 	*t = JWTTime{time.Unix(unix, 0).UTC()}

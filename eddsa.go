@@ -2,6 +2,8 @@ package jwt
 
 //RFC8032
 
+//EDDSA +1
+
 import (
 	"crypto/ed25519"
 	cryptorand "crypto/rand"

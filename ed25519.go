@@ -64,16 +64,11 @@ const (
 )
 
 // / 1024,512,341,256,128
-var sha512Pool = newObjPool[hash.Hash](8, 4, func() hash.Hash {
+var sha512Pool = nObjPool[hash.Hash](1, func() hash.Hash {
 	return _Newi_()
 },
 )
 
-//	var bytePools = [3]*objectPool[[]byte]{
-//		newObjPool[[]byte](128, 6, func() []byte { return alignSlice(signatureSize, 32) }), // signaturePool //64
-//		newObjPool[[]byte](128, 6, func() []byte { return alignSlice(publicKeyLen, 32) }),  // publicKeyPool //32
-//		newObjPool[[]byte](128, 6, func() []byte { return alignSlice(privateKeyLen, 32) }), //privateKeyLen //64
-//	}
 func (p _PrivateKey) Public() _PublicKey {
 	var publicKey = alignArray_32(32)
 	// fmt.Println(len(publicKey))
@@ -185,7 +180,7 @@ func verify(publicKey _PublicKey, message, sig []byte, domPrefix, context string
 		return false
 	}
 
-	kh := sha512Pool.get() // 1
+	kh := sha512Pool.Get() // 1
 	if kh == nil {
 		panic("ed25519: internal error: getting hash failed")
 	}
@@ -217,7 +212,7 @@ func verify(publicKey _PublicKey, message, sig []byte, domPrefix, context string
 	minusA := (&edwards25519.Point{}).Negate(A)
 	R := (&edwards25519.Point{}).VarTimeDoubleScalarBaseMult(k, minusA, S)
 	kh.Reset()
-	sha512Pool.put(kh)
+	sha512Pool.Put(kh)
 
 	return bytes.Equal(sig[:32], R.Bytes())
 }
@@ -238,7 +233,7 @@ func sign(signature, privateKey, message []byte, domPrefix, context string) {
 	}
 	prefix := h[32:]
 
-	mh := sha512Pool.get() //2
+	mh := sha512Pool.Get() //2
 	if domPrefix != domPrefixPure {
 		mh.Write(lowlevelfunctions.StringToBytes(domPrefix))
 		mh.Write([]byte{byte(len(context))})
@@ -255,11 +250,11 @@ func sign(signature, privateKey, message []byte, domPrefix, context string) {
 	}
 
 	mh.Reset()
-	sha512Pool.put(mh)
+	sha512Pool.Put(mh)
 
 	R := (&edwards25519.Point{}).ScalarBaseMult(r)
 
-	kh := sha512Pool.get() // 3
+	kh := sha512Pool.Get() // 3
 	if domPrefix != domPrefixPure {
 		kh.Write(lowlevelfunctions.StringToBytes(domPrefix))
 		kh.Write([]byte{byte(len(context))})
@@ -276,7 +271,7 @@ func sign(signature, privateKey, message []byte, domPrefix, context string) {
 	}
 
 	kh.Reset()
-	sha512Pool.put(kh)
+	sha512Pool.Put(kh)
 
 	S := edwards25519.NewScalar().MultiplyAdd(k, s, r)
 

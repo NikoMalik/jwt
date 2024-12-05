@@ -41,7 +41,7 @@ func TestMarshalJSON(t *testing.T) {
 		expected    string
 		expectError bool
 	}{
-		{"Before 1970", &JWTTime{since1970.Add(-time.Hour)}, "NULL", false},
+		{"Before 1970", &JWTTime{since1970.Add(-time.Hour)}, "null", false},
 		{"Exact 1970", &JWTTime{since1970}, "0", false},
 		{"After 1970", &JWTTime{since1970.Add(time.Hour)}, "3600", false},
 	}

@@ -89,7 +89,7 @@ type objPool[T any] struct {
 	obj      []T
 	_        [constants.CacheLinePadSize - unsafe.Sizeof([]T{})]byte
 	allocate func() T
-	_        [constants.CacheLinePadSize - unsafe.Sizeof(func() any { return nil })]byte
+	_        [constants.CacheLinePadSize - unsafe.Sizeof(func() T { var z T; return z })]byte
 	size     int
 	_        [constants.CacheLinePadSize - unsafe.Sizeof(int(0))]byte
 }
