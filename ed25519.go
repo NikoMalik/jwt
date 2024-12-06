@@ -64,10 +64,7 @@ const (
 )
 
 // / 1024,512,341,256,128
-var sha512Pool = nObjPool[hash.Hash](1, func() hash.Hash {
-	return _Newi_()
-},
-)
+var sha512Pool *objPool[hash.Hash]
 
 func (p _PrivateKey) Public() _PublicKey {
 	var publicKey = alignArray_32(32)
