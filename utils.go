@@ -1,7 +1,12 @@
 package jwt
 
 import (
+	"crypto/subtle"
+	"encoding/base64"
+	"testing"
 	"unsafe"
+
+	lowlevelfunctions "github.com/NikoMalik/low-level-functions"
 )
 
 // Copyright 2014 The Go Authors. All rights reserved.
@@ -116,11 +121,53 @@ type noCopy struct{}
 func (*noCopy) Lock()   {}
 func (*noCopy) Unlock() {}
 
-func must[T any](v T, err error) T {
+func base64Encode(dst, src []byte) {
+	base64.RawURLEncoding.Encode(dst, src)
+}
+
+func base64Decode(dst, src []byte) (n int, err error) {
+	return base64.RawURLEncoding.Decode(dst, src)
+}
+
+func base64EncodedLen(n int) int {
+	return base64.RawURLEncoding.EncodedLen(n)
+}
+
+func constTimeEqual(a, b string) bool {
+	aBytes := lowlevelfunctions.StringToBytes(a)
+	bBytes := lowlevelfunctions.StringToBytes(b)
+
+	if len(aBytes) != len(bBytes) {
+		return false
+	}
+	return subtle.ConstantTimeCompare(
+		aBytes,
+		bBytes,
+	) == 1
+}
+
+func mustOk(t *testing.T, err error) {
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+func mustok(err error) {
 	if err != nil {
 		panic(err)
 	}
-	return v
+}
+
+func mustFail(t *testing.T, err error) {
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+}
+
+func mustEqual(t *testing.T, got, want interface{}) {
+	if got != want {
+		t.Fatalf("expected %v, got %v", want, got)
+	}
 }
 
 func reset_64(slice []byte) []byte {

@@ -5,6 +5,8 @@ import "errors"
 var (
 	ErrInvalid              = errors.New("invalid bytes")
 	ErrNil                  = errors.New("jwt key is nil")
+	ErrSubjectNil           = errors.New("subject is nil")
+	ErrIssuerNil            = errors.New("issuer is nil")
 	ErrInvalidToken         = errors.New("invalid token")
 	ErrUnknownAlgorithm     = errors.New("unknown algorithm")
 	ErrInvalidKey           = errors.New("invalid key")
