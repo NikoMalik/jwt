@@ -101,7 +101,7 @@ func TestAudienceMarshal(t *testing.T) {
 		want string
 	}{
 		// Test empty Audience (nil or zero value)
-		{Audience{}, `[]`}, // Adjusted to match your current implementation
+		{Audience{}, `[]`},
 		// Test a single string
 		{Audience{aud: unsafe.Pointer(&[]string{"admin"}), lenAud: 1}, `"admin"`},
 		// Test multiple strings

@@ -4,11 +4,9 @@ import (
 	"time"
 )
 
-var now = time.Now()
-
 //https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.1
 
-type Payload struct {
+type Payload struct { // registered claims
 	JWTID          string   `json:"jti,omitempty"`
 	Issuer         string   `json:"iss"`
 	Subject        string   `json:"sub"`
@@ -47,24 +45,17 @@ func (p *Payload) GetSubject() (string, error) {
 }
 
 // get ExpirationTime
-func (p *Payload) GetExpiration() *time.Time {
+func (p *Payload) GetExpiration() *JWTTime {
 	if p.ExpirationTime != nil {
-		t := p.ExpirationTime.Time
-		return &t
+		return p.ExpirationTime
 	}
 	return nil
-}
-
-// validator processing
-func (sc *Payload) IsValidExpiresAt(now time.Time) bool {
-	return sc.ExpirationTime == nil || sc.ExpirationTime.After(now)
 }
 
 func (sc *Payload) IsID(id string) bool {
 	return constTimeEqual(sc.JWTID, id)
 }
 
-// IsValidNotBefore reports whether a token isn't used before a given time.
 func (sc *Payload) IsValidNotBefore(now time.Time) bool {
 	return sc.NotBefore == nil || sc.NotBefore.Before(now)
 }
@@ -79,9 +70,12 @@ func (p *Payload) GetIssuedAt() *time.Time {
 }
 
 func (p *Payload) HasAudience(audience string) bool {
-	lent := p.Audience.Get()
-	for i := 0; i < len(lent); i++ {
-		if audience == lent[i] {
+	if p.Audience.lenAud == 0 {
+		return false
+	}
+
+	for i := 0; i < p.Audience.lenAud; i++ {
+		if constTimeEqual(audience, p.Audience.Get()[i]) {
 			return true
 		}
 	}
@@ -89,25 +83,51 @@ func (p *Payload) HasAudience(audience string) bool {
 	return false
 }
 
-func (p *Payload) IsExpired() bool {
+// valid if token currently not expired but it can be nil
+func (sc *Payload) IsValidExpiresAt(now time.Time) bool {
+	return sc.ExpirationTime == nil || sc.ExpirationTime.After(now)
+
+}
+
+// check if expired
+func (p *Payload) IsExpired(now time.Time) bool {
 	return p.ExpirationTime != nil && p.ExpirationTime.Before(now)
 }
 
-func (p *Payload) IsNotBefore() bool {
+func (p *Payload) IsNotBefore(now time.Time) bool {
 	return p.NotBefore == nil || p.NotBefore.Before(now)
 }
 
 func (p *Payload) IsSubject(subject string) bool {
+	if subject == "" {
+		return false
+	}
 	return constTimeEqual(p.Subject, subject)
 }
 
-func (p *Payload) Validate() error {
-	defer func() {
-		p.Valid = true
-	}()
-	return nil
+func (p *Payload) IsIssuer(issuer string) bool { //iss
+	if issuer == "" {
+		return false
+	}
+
+	return constTimeEqual(p.Issuer, issuer)
 }
 
-func (p *Payload) IsIssuer(issuer string) bool {
-	return constTimeEqual(p.Issuer, issuer)
+func (p *Payload) Validate() error {
+	now := time.Now()
+	errors := make([]uint8, 0, 8)
+
+	if p.IsExpired(now) {
+		errors = append(errors, 0x01)
+	}
+	if !p.IsNotBefore(now) {
+		errors = append(errors, 0x02)
+	}
+
+	if len(errors) == 0 {
+		p.Valid = true
+		return nil
+	}
+
+	return ErrInvalid
 }

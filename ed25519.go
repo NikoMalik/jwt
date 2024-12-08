@@ -68,7 +68,6 @@ var sha512Pool *objPool[hash.Hash]
 
 func (p _PrivateKey) Public() _PublicKey {
 	var publicKey = alignArray_32(32)
-	// fmt.Println(len(publicKey))
 
 	copy_AVX2_32(publicKey[:], p[32:])
 
@@ -99,11 +98,6 @@ func newKeyFromSeed(privateKey []byte, seed []byte) {
 		panic("ed25519: internal error: setting scalar failed")
 	}
 	A := (&edwards25519.Point{}).ScalarBaseMult(s)
-	// seed 32
-	// privateKey 64
-
-	//fmt.Println(len(A.Bytes())) // 32
-
 	copy_AVX2_64(privateKey, seed)
 	copy_AVX2_32(privateKey[32:], A.Bytes())
 }

@@ -22,4 +22,7 @@ var (
 	ErrCannotGetObjFromPool = errors.New("cannot get object from pool")
 	ErrSizeNotVald          = errors.New("size not valid")
 	ErrCapNotValid          = errors.New("cap not valid")
+
+	ErrTokenExpired     = errors.New("jwt: token is expired")
+	ErrTokenNotYetValid = errors.New("jwt: token is not yet valid")
 )
