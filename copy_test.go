@@ -30,7 +30,7 @@ func Test_Copy(t *testing.T) {
 		if !reflect.DeepEqual(src, dest) {
 			t.Errorf("Standard copy failed: expected %v, got %v", src, dest)
 		}
-		t.Log(src)
+		// t.Log(src)
 	})
 
 	t.Run("Custom copy", func(t *testing.T) {
@@ -39,7 +39,7 @@ func Test_Copy(t *testing.T) {
 		if !reflect.DeepEqual(src, dest) {
 			t.Errorf("Custom copy failed: expected %v, got %v", src, dest)
 		}
-		t.Log(src)
+		// t.Log(src)
 	})
 	t.Run("Standard copy 2", func(t *testing.T) {
 
@@ -47,7 +47,7 @@ func Test_Copy(t *testing.T) {
 		if !reflect.DeepEqual(src_1, dest_1) {
 			t.Errorf("Standard copy failed: expected %v, got %v", src_1, dest_1)
 		}
-		t.Log(src_1)
+		// t.Log(src_1)
 
 	})
 
@@ -57,7 +57,7 @@ func Test_Copy(t *testing.T) {
 		if !reflect.DeepEqual(src, dest) {
 			t.Errorf("Custom copy failed: expected %v, got %v", src, dest)
 		}
-		t.Log(src_1)
+		// t.Log(src_1)
 	})
 	t.Run("Standard copy 3", func(t *testing.T) {
 		p := []byte{
@@ -79,7 +79,7 @@ func Test_Copy(t *testing.T) {
 			t.Errorf("Standard copy failed: expected %v, got %v", p[32:], publicKey)
 		}
 
-		t.Log(p[32:])
+		// t.Log(p[32:])
 
 	})
 	// t.Run("Custom copy 3", func(t *testing.T) {
@@ -122,7 +122,7 @@ func Test_Copy(t *testing.T) {
 			t.Errorf("avx copy failed: expected %v, got %v", p, publicKey)
 		}
 
-		t.Log(publicKey)
+		// t.Log(publicKey)
 
 	})
 
@@ -147,7 +147,7 @@ func Test_Copy(t *testing.T) {
 			t.Errorf("avx copy failed: expected %v, got %v", p, s)
 		}
 
-		t.Log(s)
+		// t.Log(s)
 	})
 
 	t.Run("avx2 copy 128", func(t *testing.T) {
@@ -177,7 +177,7 @@ func Test_Copy(t *testing.T) {
 			t.Errorf("avx copy failed: expected %v, got %v", p, s)
 		}
 
-		t.Log(s)
+		// t.Log(s)
 	})
 
 	t.Run("avx2 copy 64: 32 to 64 ", func(t *testing.T) {
@@ -215,7 +215,7 @@ func Test_Copy(t *testing.T) {
 			t.Errorf("avx copy failed: expected %v, got %v", p, s)
 		}
 
-		t.Log("s", s)
+		// t.Log("s", s)
 
 	})
 
@@ -234,7 +234,7 @@ func Test_Copy(t *testing.T) {
 			t.Errorf("avx copy failed: expected %v, got %v", p, s)
 		}
 
-		t.Log(s)
+		// t.Log(s)
 
 	})
 
@@ -253,7 +253,7 @@ func Test_Copy(t *testing.T) {
 			t.Errorf("avx copy failed: expected %v, got %v", p, s)
 		}
 
-		t.Log(s)
+		// t.Log(s)
 
 	})
 

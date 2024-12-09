@@ -37,7 +37,9 @@ type _EDDSA struct {
 }
 
 func (e *_EDDSA) Reset() {
-	e.PrivateKey = e.PrivateKey[:0]
+	for i := range e.PrivateKey {
+		e.PrivateKey[i] = 0
+	}
 }
 
 func (e *_EDDSA) Close() {
@@ -141,6 +143,18 @@ func (e *_EDDSA) Verify(payload []byte, sig []byte) bool {
 	}
 
 	return Verify__(e.PublicKey, payload, sig)
+}
+
+func (e *_EDDSA) VerifyToken(token *Token[*_EDDSA]) error {
+	switch {
+	case !token.isValid():
+		return ErrInvalid
+	case !constTimeEqual(token.header.Algorithm.String(), EDDSA.String()):
+		return ErrInvalid
+	case !e.Verify(token.PayloadPart(), token.signature):
+		return ErrInvalid
+	}
+	return nil
 }
 
 func GenerateEDDSARandom(rand io.Reader) (_PrivateKey, error) {

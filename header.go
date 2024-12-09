@@ -10,11 +10,11 @@ var bufStringPool = nObjPool[*lowlevelfunctions.StringBuffer](1, func() *lowleve
 
 type HeaderOption func(*Header)
 
-type Header struct { // must be in base64
-	KeyID       []byte    `json:"kid"`
-	ContentType Cyt       `json:"cty"`
-	Algorithm   Algorithm `json:"alg"`
-	Type        Typ       `json:"typ"`
+type Header struct {
+	KeyID       []byte    `json:"kid,omitempty"`
+	ContentType Cyt       `json:"cty,omitempty"`
+	Algorithm   Algorithm `json:"alg,omitempty"`
+	Type        Typ       `json:"typ,omitempty"`
 }
 
 type Cyt uint8
@@ -101,7 +101,6 @@ func (h *Header) MarshalJSON() []byte {
 func unmarshalHeader(header *Header) []byte {
 	if header.Type == 0 {
 		header.Type = TypeJWT
-
 	}
 
 	info := header.MarshalJSON()
@@ -111,9 +110,4 @@ func unmarshalHeader(header *Header) []byte {
 	base64Encode(encoded, info)
 
 	return encoded
-}
-
-func SignHeader[T any](payload T, alg Algorithm, opts ...HeaderOption) ([]byte, error) {
-	return nil, nil
-
 }

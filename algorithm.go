@@ -1,12 +1,11 @@
 package jwt
 
-type Algorithm int32
+import "unsafe"
 
-type Signer interface {
-	Algorithm() Algorithm
-	SignSize() int32
-	Sign(payload []byte) ([]byte, error)
-	Verify(payload []byte, sig []byte) bool
+type Algorithm int8
+
+var algorithmRegistry = map[Algorithm]unsafe.Pointer{
+	EDDSA: unsafe.Pointer(&_EDDSA{}),
 }
 
 const (
@@ -57,8 +56,11 @@ func (a Algorithm) String() string {
 		return "HS384"
 	case HS512:
 		return "HS512"
+	case none:
+		return "none"
 	default:
 		return "unknown"
 	}
-
 }
+
+func (a Algorithm) Algorithm() Algorithm { return a }
