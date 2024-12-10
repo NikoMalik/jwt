@@ -66,6 +66,8 @@ const (
 // / 1024,512,341,256,128
 var sha512Pool *objPool[hash.Hash]
 
+var digestPool *objPool[[]byte]
+
 func (p _PrivateKey) Public() _PublicKey {
 	var publicKey = alignArray_32(32)
 
@@ -118,7 +120,7 @@ func (priv _PrivateKey) __Sign__(rand io.Reader, message []byte, opts crypto.Sig
 		}
 		signature := alignArray_64(32)
 		// fmt.Println(len(signature))
-		sign(signature[:], priv, message, domPrefixPh, context)
+		sign(&signature, priv, message, domPrefixPh, context)
 		// _ = signature[:0]
 
 		return signature[:], nil
@@ -127,7 +129,7 @@ func (priv _PrivateKey) __Sign__(rand io.Reader, message []byte, opts crypto.Sig
 			return nil, errors.New("ed25519: bad Ed25519ctx context length: " + strconv.Itoa(l))
 		}
 		var signature = alignArray_64(32)
-		sign(signature[:], priv, message, domPrefixCtx, context)
+		sign(&signature, priv, message, domPrefixCtx, context)
 		// bytePools[0].clear()
 
 		return signature[:], nil
@@ -146,7 +148,7 @@ func Sign(privateKey _PrivateKey, message []byte) []byte {
 	var signature = alignArray_64(32)
 
 	// fmt.Println(len(signature))
-	sign(signature[:], privateKey, message, domPrefixPure, "")
+	sign(&signature, privateKey, message, domPrefixPure, "")
 	// _ = signature[:0]
 
 	return signature[:]
@@ -186,9 +188,9 @@ func verify(publicKey _PublicKey, message, sig []byte, domPrefix, context string
 	}
 	kh.Write(publicKey)
 	kh.Write(message)
-	var h_Digest [64]byte
+	var hramDigest = digestPool.Get()
 
-	hramDigest := kh.Sum(h_Digest[:0])
+	hramDigest = kh.Sum(hramDigest)
 	k, err := edwards25519.NewScalar().SetUniformBytes(hramDigest)
 	if err != nil {
 		panic("ed25519: internal error: setting scalar failed")
@@ -204,12 +206,13 @@ func verify(publicKey _PublicKey, message, sig []byte, domPrefix, context string
 	R := (&edwards25519.Point{}).VarTimeDoubleScalarBaseMult(k, minusA, S)
 	kh.Reset()
 	sha512Pool.Put(kh)
+	hramDigest = hramDigest[:0]
+	digestPool.Put(hramDigest)
 
 	return bytes.Equal(sig[:32], R.Bytes())
 }
 
-func sign(signature, privateKey, message []byte, domPrefix, context string) {
-	_ = signature[63]
+func sign(signature *[64]byte, privateKey, message []byte, domPrefix, context string) {
 	_ = privateKey[63]
 
 	if l := len(privateKey); l != privateKeyLen {
@@ -226,15 +229,15 @@ func sign(signature, privateKey, message []byte, domPrefix, context string) {
 
 	mh := sha512Pool.Get() //2
 	if domPrefix != domPrefixPure {
-		mh.Write(lowlevelfunctions.StringToBytes(domPrefix))
+		mh.Write([]byte(domPrefix))
 		mh.Write([]byte{byte(len(context))})
-		mh.Write(lowlevelfunctions.StringToBytes(context))
+		mh.Write([]byte(context))
 	}
 	mh.Write(prefix)
 	mh.Write(message)
-	var message_D, h_D [64]byte
+	var messageDigest = digestPool.Get()
 
-	messageDigest := mh.Sum(message_D[:0])
+	messageDigest = mh.Sum(messageDigest)
 	r, err := edwards25519.NewScalar().SetUniformBytes(messageDigest)
 	if err != nil {
 		panic("ed25519: internal error: setting scalar failed")
@@ -247,15 +250,16 @@ func sign(signature, privateKey, message []byte, domPrefix, context string) {
 
 	kh := sha512Pool.Get() // 3
 	if domPrefix != domPrefixPure {
-		kh.Write(lowlevelfunctions.StringToBytes(domPrefix))
+		kh.Write([]byte(domPrefix))
 		kh.Write([]byte{byte(len(context))})
-		kh.Write(lowlevelfunctions.StringToBytes(context))
+		kh.Write([]byte(context))
 	}
 	kh.Write(R.Bytes())
 	kh.Write(publicKey)
 	kh.Write(message)
+	var hramDigest = digestPool.Get()
 
-	hramDigest := kh.Sum(h_D[:0])
+	hramDigest = kh.Sum(hramDigest)
 	k, err := edwards25519.NewScalar().SetUniformBytes(hramDigest)
 	if err != nil {
 		panic("ed25519: internal error: setting scalar failed")
@@ -263,6 +267,10 @@ func sign(signature, privateKey, message []byte, domPrefix, context string) {
 
 	kh.Reset()
 	sha512Pool.Put(kh)
+	messageDigest = messageDigest[:0]
+	hramDigest = hramDigest[:0]
+	digestPool.Put(messageDigest)
+	digestPool.Put(hramDigest)
 
 	S := edwards25519.NewScalar().MultiplyAdd(k, s, r)
 

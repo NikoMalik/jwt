@@ -1,10 +1,12 @@
 package jwt
 
-import lowlevelfunctions "github.com/NikoMalik/low-level-functions"
+import (
+	lowlevelfunctions "github.com/NikoMalik/low-level-functions"
+)
 
 //https://datatracker.ietf.org/doc/html/rfc7519#section-5
 
-var bufStringPool = nObjPool[*lowlevelfunctions.StringBuffer](1, func() *lowlevelfunctions.StringBuffer {
+var bufStringPool = nObjPool[*lowlevelfunctions.StringBuffer](4, func() *lowlevelfunctions.StringBuffer {
 	return lowlevelfunctions.NewStringBuffer(64)
 })
 
@@ -40,7 +42,7 @@ const (
 	ContentTypeJWT    Cyt = 1
 	ContentTypeJWS    Cyt = 2
 	ContentTypeJSON   Cyt = 3
-	ContentTypeCustom Cyt = 4
+	ContentTypeCustom Cyt = 4 //TODO hold custom content type
 )
 
 type Typ uint8
@@ -103,11 +105,45 @@ func unmarshalHeader(header *Header) []byte {
 		header.Type = TypeJWT
 	}
 
+	if header.Type == TypeJWT && header.ContentType == 0 && header.KeyID == nil {
+
+		if kid, ok := allocatedHeaders[header.Algorithm]; ok {
+
+			return kid
+		}
+	}
+
+	if header.Type == TypeJWT && header.ContentType == ContentTypeJWT && header.KeyID == nil {
+
+		if kid, ok := allocatedHeadersWithContentTypeJWT[header.Algorithm]; ok {
+
+			return kid
+		}
+	}
+
 	info := header.MarshalJSON()
+	buf := base64BufPool.Get()
 
-	encoded := alignSlice(base64EncodedLen(len(info)), 32) // // EncodedLen returns the length in bytes of the base64 encoding  of an input buffer of length n.
+	token := *buf
+	encodedLen := base64EncodedLen(len(info))
 
-	base64Encode(encoded, info)
+	// encoded := alignSlice(base64EncodedLen(len(info)), 32) // // EncodedLen returns the length in bytes of the base64 encoding  of an input buffer of length n.
 
-	return encoded
+	base64Encode(token[:encodedLen], info)
+
+	base64BufPool.Put(buf)
+
+	return token[:encodedLen]
+}
+
+var allocatedHeaders = map[Algorithm][]byte{
+	EDDSA: []byte{101, 121, 74, 104, 98, 71, 99, 105, 79, 105, 74, 70, 82, 69, 82, 84, 81, 83, 73, 115, 73, 110, 82, 53, 99, 67,
+		73, 54, 73, 107, 112, 88, 86, 67, 74, 57},
+}
+
+var allocatedHeadersWithContentTypeJWT = map[Algorithm][]byte{
+	EDDSA: []byte{
+		101, 121, 74, 104, 98, 71, 99, 105, 79, 105, 74, 70, 82, 69, 82, 84, 81, 83, 73, 115, 73, 110, 82, 53, 99, 67, 73, 54, 73, 107, 112, 88, 86, 67,
+		73, 115, 73, 109, 78, 48, 101, 83, 73, 54, 73, 109, 70, 119, 99, 71, 120, 112, 89, 50, 70, 48, 97, 87, 57, 117, 76, 50, 112, 51, 100, 67, 74, 57,
+	},
 }

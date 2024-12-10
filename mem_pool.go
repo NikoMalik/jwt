@@ -84,7 +84,7 @@ func (p *PoolChan[T]) CurrentSize() int {
 }
 
 type objPool[T any] struct {
-	mut      *mutex.MutexExp
+	mut      *mutex.MutexExp // lock mutex
 	_        [constants.CacheLinePadSize - 8]byte
 	obj      []T
 	_        [constants.CacheLinePadSize - unsafe.Sizeof([]T{})]byte

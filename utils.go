@@ -152,6 +152,13 @@ func mustOk(t *testing.T, err error) {
 	}
 }
 
+func must[T any](v T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
 func mustok(err error) {
 	if err != nil {
 		panic(err)
@@ -171,7 +178,7 @@ func mustEqual(t *testing.T, got, want interface{}) {
 }
 
 func reset_64(slice []byte) []byte {
-	_ = slice[64]
+	_ = slice[63]
 	slice[0], slice[1], slice[2], slice[3], slice[4], slice[5], slice[6], slice[7] = 0, 0, 0, 0, 0, 0, 0, 0
 	slice[8], slice[9], slice[10], slice[11], slice[12], slice[13], slice[14], slice[15] = 0, 0, 0, 0, 0, 0, 0, 0
 	slice[16], slice[17], slice[18], slice[19], slice[20], slice[21], slice[22], slice[23] = 0, 0, 0, 0, 0, 0, 0, 0
@@ -185,7 +192,7 @@ func reset_64(slice []byte) []byte {
 }
 
 func reset_32(slice []byte) []byte {
-	_ = slice[32]
+	_ = slice[31]
 	slice[0], slice[1], slice[2], slice[3], slice[4], slice[5], slice[6], slice[7] = 0, 0, 0, 0, 0, 0, 0, 0
 	slice[8], slice[9], slice[10], slice[11], slice[12], slice[13], slice[14], slice[15] = 0, 0, 0, 0, 0, 0, 0, 0
 	slice[16], slice[17], slice[18], slice[19], slice[20], slice[21], slice[22], slice[23] = 0, 0, 0, 0, 0, 0, 0, 0
@@ -196,13 +203,13 @@ func reset_32(slice []byte) []byte {
 
 func alignArray_32(alignment int) [32]byte {
 	var buf [32 + 31]byte // 31 max padding
-	base := uintptr(unsafe.Pointer(&buf[0]))
-	offset := base % uintptr(alignment)
+	// base := uintptr(unsafe.Pointer(&buf[0]))
+	offset := uintptr(unsafe.Pointer(&buf[0])) % uintptr(alignment)
 	var alignedPtr uintptr
 	if offset == 0 {
-		alignedPtr = base
+		alignedPtr = uintptr(unsafe.Pointer(&buf[0]))
 	} else {
-		alignedPtr = base + uintptr(alignment) - offset
+		alignedPtr = uintptr(unsafe.Pointer(&buf[0])) + uintptr(alignment) - offset
 	}
 
 	return *(*[32]byte)(unsafe.Pointer(alignedPtr))
@@ -211,14 +218,15 @@ func alignArray_32(alignment int) [32]byte {
 func alignArray_64(alignment int) [64]byte {
 
 	var buf [64 + 31]byte
-	base := uintptr(unsafe.Pointer(&buf[0]))
-	offset := int(base % uintptr(alignment))
+	// base := uintptr(unsafe.Pointer(&buf[0]))
+	offset := uintptr(unsafe.Pointer(&buf[0])) % uintptr(alignment)
 
 	var alignedPtr uintptr
 	if offset == 0 {
-		alignedPtr = base
+		alignedPtr = uintptr(unsafe.Pointer(&buf[0]))
+
 	} else {
-		alignedPtr = base + uintptr(alignment-offset)
+		alignedPtr = uintptr(unsafe.Pointer(&buf[0])) + uintptr(alignment) - offset
 	}
 
 	return *(*[64]byte)(unsafe.Pointer(alignedPtr))

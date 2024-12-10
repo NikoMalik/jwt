@@ -55,6 +55,26 @@ func (e *_EDDSA) SignSize() int { return len(e.PrivateKey) }
 
 func (e *_EDDSA) Algorithm() Algorithm { return EDDSA }
 
+func NewEddsa(private []byte) (*_EDDSA, error) {
+	var privKey _PrivateKey = alignSlice(privateKeyLen, 32)
+	if privKey == nil || len(privKey) == 0 {
+		return nil, ErrCannotGetObjFromPool
+	}
+
+	switch {
+	case len(private) == 0:
+		return nil, ErrNil
+	case len(private) != privateKeyLen:
+		return nil, ErrInvalidKeySize
+
+	default:
+		copy_AVX2_64(privKey, private)
+
+		return &_EDDSA{PrivateKey: privKey, PublicKey: privKey.Public()}, nil
+	}
+
+}
+
 func NewEDDSA[T KeySource](keySource T) (*_EDDSA, error) {
 	var privKey _PrivateKey = alignSlice(privateKeyLen, 32)
 	if privKey == nil || len(privKey) == 0 {
@@ -148,11 +168,11 @@ func (e *_EDDSA) Verify(payload []byte, sig []byte) bool {
 func (e *_EDDSA) VerifyToken(token *Token[*_EDDSA]) error {
 	switch {
 	case !token.isValid():
-		return ErrInvalid
+		return ErrTokenIsINVALID
 	case !constTimeEqual(token.header.Algorithm.String(), EDDSA.String()):
 		return ErrInvalid
-	case !e.Verify(token.PayloadPart(), token.signature):
-		return ErrInvalid
+	case !e.Verify(token.PayloadPart(), token.Signature()):
+		return ErrSignatureInvalid
 	}
 	return nil
 }
@@ -162,7 +182,7 @@ func GenerateEDDSARandom(rand io.Reader) (_PrivateKey, error) {
 		rand = cryptorand.Reader
 	}
 
-	var seed = alignArray_32(32)
+	var seed = [32]byte{}
 	if _, err := io.ReadFull(rand, seed[:]); err != nil {
 		return nil, err
 	}

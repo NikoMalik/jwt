@@ -4,6 +4,7 @@ import (
 	"time"
 
 	lowlevelfunctions "github.com/NikoMalik/low-level-functions"
+	"github.com/bytedance/sonic"
 )
 
 //https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.1
@@ -146,33 +147,40 @@ func (p *Payload) MarshalJSON() []byte {
 	if p.JWTID != "" {
 		buf.WriteString(`"jti":"`)
 		buf.WriteString(p.JWTID)
-		buf.WriteString(`",`)
+
 	}
 	if p.Issuer != "" {
-		buf.WriteString(`"iss":"`)
+		buf.WriteString(`","iss":"`)
 		buf.WriteString(p.Issuer)
-		buf.WriteString(`",`)
+
 	}
 	if p.Subject != "" {
-		buf.WriteString(`"sub":"`)
+		buf.WriteString(`","sub":"`)
 		buf.WriteString(p.Subject)
-		buf.WriteString(`",`)
+
 	}
-	if p.Audience.lenAud > 0 {
-		buf.WriteString(`"aud":[`)
-		for i := 0; i < p.Audience.lenAud; i++ {
-			if i > 0 {
-				buf.WriteString(`,`)
+	if p.Audience.aud != nil && p.Audience.lenAud > 0 {
+		buf.WriteString(`","aud":`)
+		if p.Audience.lenAud == 1 {
+			buf.WriteString(`"`)
+			buf.WriteString(p.Audience.Get()[0])
+			buf.WriteString(`",`)
+		} else {
+			buf.WriteString(`[`)
+			for i := 0; i < p.Audience.lenAud; i++ {
+				if i > 0 {
+					buf.WriteString(`,`)
+				}
+				buf.WriteString(`"`)
+				buf.WriteString(p.Audience.Get()[i])
+				buf.WriteString(`"`)
 			}
-			buf.WriteString(`"`)
-			buf.WriteString(p.Audience.Get()[i])
-			buf.WriteString(`"`)
+			buf.WriteString(`],`)
 		}
-		buf.WriteString(`],`)
 	}
 	if p.ExpirationTime != nil {
 		buf.WriteString(`"exp":"`)
-		buf.WriteString(p.ExpirationTime.Format(time.RFC3339))
+		buf.WriteString(p.ExpirationTime.Format(time.RFC3339)) // ISO 8601 format
 		buf.WriteString(`",`)
 	}
 	if p.NotBefore != nil {
@@ -186,15 +194,16 @@ func (p *Payload) MarshalJSON() []byte {
 		buf.WriteString(`",`)
 	}
 
-	// Remove the trailing comma and close the JSON object
-	if buf.Len() > 1 && buf.Bytes()[buf.Len()-1] == ',' {
-		truncate(buf, buf.Len()-1)
-	}
+	// // Remove trailing comma, if present
+	// if buf.Len() > 1 && buf.Bytes()[buf.Len()-1] == ',' {
+	// 	buf.Truncate(buf.Len() - 1)
+	// }
+
 	buf.WriteString(`}`)
 	result := buf.Bytes()
 	buf.Reset()
-
 	bufStringPool.Put(buf)
+
 	return result
 }
 
@@ -207,11 +216,21 @@ func truncate(buffer *lowlevelfunctions.StringBuffer, n int) {
 }
 
 func unmarshalPayload(payload *Payload) []byte {
-	info := payload.MarshalJSON()
+	info, _ := sonic.Marshal(payload)
 
-	encoded := alignSlice(base64EncodedLen(len(info)), 32)
+	buf := base64BufPool.Get()
 
-	base64Encode(encoded, info)
+	encodedLen := base64EncodedLen(len(info))
+	token := *buf
+	// if len(token) < encodedLen {
+	// 	token = alignSlice(encodedLen, 32)
+	// }
 
-	return encoded
+	// encoded := alignSlice(base64EncodedLen(len(info)), 32)
+
+	base64Encode(token[:encodedLen], info)
+
+	base64BufPool.Put(buf)
+
+	return token[:encodedLen]
 }

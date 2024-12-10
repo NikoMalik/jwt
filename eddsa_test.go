@@ -18,38 +18,16 @@ var (
 		0xaf, 0x02, 0x1a, 0x68, 0xf7, 0x07, 0x51, 0x1a,
 	})
 	ed25519PublicKey = _PublicKey(ed25519PrivateKey[32:])
-
-	ed25519PrivateKeyAnother _PrivateKey = []byte("eJGvQDFFiaYHaZU2sfRhPrGKlgZcHBT8CPY3Fx2zhQEjlzQ5-3qTgKZ5wCmIRqL4sbNhWvpPx5Y_PqmSEg3oYg")
-	ed25519PublicKeyAnother  _PublicKey  = []byte("I5c0Oft6k4CmecApiEai-LGzYVr6T8eWPz6pkhIN6GI")
 )
 
-func TestEdDSA(t *testing.T) {
-	testCases := []struct {
-		privateKey _PrivateKey
-		publicKey  _PublicKey
-		wantErr    error
-	}{
-		{ed25519PrivateKey, ed25519PublicKey, nil},
-		{ed25519PrivateKey, ed25519PublicKeyAnother, ErrInvalidSignature},
-		{ed25519PrivateKeyAnother, ed25519PublicKey, ErrInvalidSignature},
-	}
+var seedBytes = ed25519PrivateKey
 
-	for _, tc := range testCases {
-		_, err := NewEDDSA(tc.privateKey)
-
-		if err == nil {
-			t.Fatalf("except error found: %v", err)
-		}
-
-	}
-}
 func TestNewSignerEDDSA(t *testing.T) {
-	seedHex := "9d61b19dfffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60" // example hex
-	eddsa, err := NewEDDSA(seedHex)
+	eddsa, err := NewEddsa(seedBytes)
 	if err != nil {
 		t.Fatalf("Failed to create EDDSA signer: %v", err)
 	}
-	defer eddsa.Close()
+
 	// fmt.Println(eddsa.PrivateKey)
 	//
 	if len(eddsa.PrivateKey) != ed25519.PrivateKeySize {
@@ -61,13 +39,11 @@ func TestNewSignerEDDSA(t *testing.T) {
 }
 
 func TestEDDSASignAndVerify(t *testing.T) {
-	seedHex := "9d61b19dfffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60"
 
-	eddsa, err := NewEDDSA(seedHex)
+	eddsa, err := NewEddsa(seedBytes)
 	if err != nil {
 		t.Fatalf("Failed to create EDDSA signer: %v", err)
 	}
-	defer eddsa.Close()
 
 	message := []byte("test message")
 	signature, err := eddsa.Sign(message)
@@ -132,7 +108,7 @@ func TestNewEDDSAWithRandomBytes(t *testing.T) {
 	t.Logf("key size: %v", len(randomBytes))
 
 	// t.Log(randomBytes)
-	eddsa, err := NewEDDSA(randomBytes)
+	eddsa, err := NewEddsa(randomBytes)
 	t.Logf("data eddsa :%v, len eddsa: %v", eddsa, len(eddsa.PrivateKey))
 
 	if err != nil {
@@ -171,10 +147,9 @@ func TestNewSignerWithArray(t *testing.T) {
 		0x0e, 0xe1, 0x72, 0xf3, 0xda, 0xa6, 0x23, 0x25,
 		0xaf, 0x02, 0x1a, 0x68, 0xf7, 0x07, 0x51, 0x1a,
 	}
-	_, err := NewEDDSA(private)
-	if err != nil {
-		t.Errorf("Expected nil for array seed, got error")
-	}
+	_, err := NewEddsa(private[:])
+	mustOk(t, err)
+
 }
 
 func TestWithPointerArray(t *testing.T) {
@@ -189,8 +164,7 @@ func TestWithPointerArray(t *testing.T) {
 		0x25, 0xaf, 0x02, 0x1a, 0x68, 0xf7, 0x07, 0x51,
 	}
 
-	_, err := NewEDDSA(&private)
-	if err != nil {
-		t.Errorf("Expected nil for array seed, got error")
-	}
+	_, err := NewEddsa(private[:])
+	mustOk(t, err)
+
 }

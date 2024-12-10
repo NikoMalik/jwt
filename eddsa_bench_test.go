@@ -1,7 +1,7 @@
 package jwt
 
 import (
-	"crypto/rand"
+	cryptorand "crypto/rand"
 	"fmt"
 	"runtime"
 	"testing"
@@ -21,15 +21,16 @@ func printAllocations(stage string) {
 	)
 }
 
-var keySource = "9fd61b19dfffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f6"
+var keyByte = must(GenerateEDDSARandom(cryptorand.Reader))
 
 func BenchmarkSign(b *testing.B) {
+	// Enable allocation reporting
+	b.ReportAllocs()
 
-	eddsa, err := NewEDDSA(keySource)
+	eddsa, err := NewEddsa(keyByte)
 	if err != nil {
 		b.Fatalf("Failed to create EDDSA instance: %v", err)
 	}
-	defer eddsa.Close()
 
 	// Create a random payload to sign
 	payload := make([]byte, 1024)
@@ -45,23 +46,18 @@ func BenchmarkSign(b *testing.B) {
 }
 
 func BenchmarkSignAndVerify(b *testing.B) {
-	key, err := GenerateEDDSARandom(rand.Reader)
-	if err != nil {
-		b.Fatalf("ffffff: generate failed :%v", err)
-	}
-	eddsa, err := NewEDDSA(key.Bytes())
+
+	eddsa, err := NewEddsa(keyByte)
 	if err != nil {
 		b.Fatalf("Failed to create EDDSA instance: %v", err)
 	}
-
-	defer eddsa.Close()
 
 	payload := make([]byte, 1024)
 	signature, err := eddsa.Sign(payload)
 	if err != nil {
 		b.Fatalf("Sign failed : %v", err)
 	}
-	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		valid := eddsa.Verify(payload, signature)
 		if !valid {
@@ -74,11 +70,10 @@ func BenchmarkSignAndVerify(b *testing.B) {
 func BenchmarkVerify(b *testing.B) {
 	// Generate a random seed or private key to create EDDSA instance
 
-	eddsa, err := NewEDDSA(keySource)
+	eddsa, err := NewEddsa(keyByte)
 	if err != nil {
 		b.Fatalf("Failed to create EDDSA instance: %v", err)
 	}
-	defer eddsa.Close()
 
 	// Create a random payload and sign it to generate a valid signature
 	payload := make([]byte, 1024)
@@ -90,9 +85,9 @@ func BenchmarkVerify(b *testing.B) {
 	// Run the benchmark for Verify
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		valid := eddsa.Verify(payload, signature)
-		if !valid {
+		if !eddsa.Verify(payload, signature) {
 			b.Fatalf("Verification failed")
 		}
+
 	}
 }

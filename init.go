@@ -2,10 +2,12 @@ package jwt
 
 import (
 	"crypto"
+	"crypto/sha512"
 	"fmt"
 	"hash"
 	"unsafe"
 
+	lowlevelfunctions "github.com/NikoMalik/low-level-functions"
 	"github.com/klauspost/cpuid/v2"
 )
 
@@ -14,10 +16,20 @@ func init() {
 		fmt.Errorf("unsupported CPU")
 		return
 	}
-	sha512Pool = nObjPool[hash.Hash](1, func() hash.Hash {
+	sha512Pool = nObjPool[hash.Hash](4, func() hash.Hash {
 		return _Newi_()
 	},
 	)
+	base64BufPool = nObjPool[*[]byte](2, func() *[]byte {
+		buf := alignSlice(base64BufferSize, 32)
+		return &buf
+
+	})
+
+	digestPool = nObjPool[[]byte](4, func() []byte {
+		digest := lowlevelfunctions.MakeNoZeroCap(0, sha512.Size)
+		return digest
+	})
 
 	// // possible solution to escape zen1/zen2 (need more tests with zen1/zen2)
 	// if useAVX2 {
@@ -47,9 +59,12 @@ func SupportedCPU() bool {
 //go:linkname memmove runtime.memmove
 func memmove(dst, src unsafe.Pointer, n uintptr)
 
+const base64BufferSize = 64 * KB
+
 var (
-	_CPU_        = cpuid.CPU
-	wantFeatures = cpuid.CombineFeatures(cpuid.AVX2, cpuid.CLMUL, cpuid.BMI2)
+	base64BufPool *objPool[*[]byte]
+	_CPU_         = cpuid.CPU
+	wantFeatures  = cpuid.CombineFeatures(cpuid.AVX2, cpuid.CLMUL, cpuid.BMI2)
 )
 
 type HashBorrower[T hash.Hash] struct {

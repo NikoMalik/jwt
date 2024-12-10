@@ -123,7 +123,7 @@ type digest struct {
 	nx   int
 	len  uint64
 	size int // size224, size256, size384, or size512
-	_    lowlevelfunctions.CacheLinePadding
+
 }
 
 func (d *digest) Reset() {
