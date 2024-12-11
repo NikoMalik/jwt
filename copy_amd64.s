@@ -180,34 +180,23 @@ TEXT ·copy_AVX2_32(SB), NOSPLIT , $0
 	MOVQ src_data+24(FP), SI
 	MOVQ src_len+32(FP),      BX
     XORQ AX, AX
+    PCALIGN $32
 
 
-ALIGN_CHECK:
-    CMPQ DI,$31
-    JNZ USE_UNALIGNED
-    CMPQ SI,$31
-    JNZ USE_UNALIGNED
-    JMP ALIGNED_LOOP
-
-ALIGNED_LOOP:
-    VMOVDQA 0(SI)(AX*1), Y0
-    VMOVDQA Y0, 0(DI)(AX*1)
-
-    ADDQ $32, AX
-    CMPQ AX, BX
-    JL   ALIGNED_LOOP
-    RET
-    
+ 
     
 
-USE_UNALIGNED:
+LOOP:
     VMOVDQU 0(SI)(AX*1), Y0
 	VMOVDQU Y0, 0(DI)(AX*1)
 
     
 	ADDQ $32, AX
 	CMPQ AX, BX
-	JL   USE_UNALIGNED
+	JL   LOOP
+    VZEROUPPER
+    //PCALIGN $32
+
    
 	RET
 
@@ -217,36 +206,13 @@ TEXT ·copy_AVX2_64(SB), NOSPLIT , $0
     MOVQ src_data+24(FP), SI
     MOVQ src_len+32(FP),      BX
     XORQ AX, AX
+    PCALIGN $32
+
+    
   
 
-ALIGN_CHECK:
-    CMPQ DI,$31 
-    JNZ USE_UNALIGNED
-    CMPQ SI,$31
-    JNZ USE_UNALIGNED
-    JMP ALIGNED_LOOP
 
-
-ALIGNED_LOOP:
-    VMOVDQA 0(SI)(AX*1), Y0 
-
-    VMOVDQA  32(SI)(AX*1),Y1
-
-    VMOVDQA Y0, 0(DI)(AX*1)
-
-    VMOVDQA Y1, 32(DI)(AX*1)
-
-
-    ADDQ $64, AX 
-
-    CMPQ AX, BX 
-    JL ALIGNED_LOOP
-    RET
-
-
-
-
-USE_UNALIGNED:
+LOOP:
 
     //VMOVDQU 0(SI)(AX*1), Y0 
 
@@ -282,7 +248,8 @@ USE_UNALIGNED:
     ADDQ $64, AX 
 
     CMPQ AX, BX 
-    JL USE_UNALIGNED
+    JL LOOP
+    VZEROUPPER
     RET
 
 TEXT ·copy_AMD_AVX2_32(SB), NOSPLIT ,$0 
@@ -290,12 +257,12 @@ TEXT ·copy_AMD_AVX2_32(SB), NOSPLIT ,$0
     MOVD src_data+24(FP), SI
     MOVD src_len+32(FP),      BX
     XORQ AX, AX
-    JMP ALIGN_CHECK
+   
 
 ALIGN_CHECK:
-    CMPQ DI,$31 
+    CMPQ DI,$16 
     JNZ USE_UNALIGNED
-    CMPQ SI,$31
+    CMPQ SI,$16
     JNZ USE_UNALIGNED
     JMP ALIGNED_LOOP
 

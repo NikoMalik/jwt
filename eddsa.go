@@ -182,12 +182,13 @@ func GenerateEDDSARandom(rand io.Reader) (_PrivateKey, error) {
 		rand = cryptorand.Reader
 	}
 
-	var seed = [32]byte{}
-	if _, err := io.ReadFull(rand, seed[:]); err != nil {
+	var seed = alignSliceWithArray_32(32)
+
+	if _, err := io.ReadFull(rand, seed); err != nil {
 		return nil, err
 	}
 
-	privateKey := NewKeyFromSeed(seed[:])
+	privateKey := NewKeyFromSeed(seed)
 
 	return privateKey, nil
 

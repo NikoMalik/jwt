@@ -39,6 +39,7 @@ func BenchmarkSign(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := eddsa.Sign(payload)
+
 		if err != nil {
 			b.Fatalf("Sign failed: %v", err)
 		}

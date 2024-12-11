@@ -64,44 +64,53 @@ const (
 )
 
 // / 1024,512,341,256,128
+
 var sha512Pool *objPool[hash.Hash]
 
 var digestPool *objPool[[]byte]
 
 func (p _PrivateKey) Public() _PublicKey {
-	var publicKey = alignArray_32(32)
+	// Acquire buffer from the pool
 
-	copy_AVX2_32(publicKey[:], p[32:])
-
-	return publicKey[:]
+	publicKey := alignSliceWithArray_32(32)
+	copy_AVX2_32(publicKey, p[32:])
+	return publicKey
 }
 
 func NewKeyFromSeed(seed []byte) _PrivateKey {
-	_ = seed[31]
+	// Acquire and initialize buffer
+	privateKey := alignSliceWithArray_64(32)
+	newKeyFromSeed(privateKey, seed)
 
-	// Outline the function body so that the returned key can be stack-allocated.
-	var privateKey = alignArray_64(32)
-
-	newKeyFromSeed(privateKey[:], seed)
-
-	return privateKey[:]
+	return privateKey
 }
 
 func newKeyFromSeed(privateKey []byte, seed []byte) {
-	_ = privateKey[63]
-	_ = seed[31]
+
 	if l := len(seed); l != seedLen {
 		panic("ed25519: bad seed length: " + strconv.Itoa(l))
 	}
+	if l := len(privateKey); l != privateKeyLen {
+		panic("ed25519: bad private key length: " + strconv.Itoa(l))
+	}
 
 	h := _sum512_(seed)
-	s, err := edwards25519.NewScalar().SetBytesWithClamping(h[:32])
+	h[0] &= 248
+	h[31] &= 127
+	h[31] |= 64
+
+	var hbytes = alignSliceWithArray_64(32)
+	copy_AVX2_32(hbytes[:32], h[:32])
+
+	s, err := edwards25519.NewScalar().SetUniformBytes(hbytes)
 	if err != nil {
 		panic("ed25519: internal error: setting scalar failed")
 	}
-	A := (&edwards25519.Point{}).ScalarBaseMult(s)
+	A := new(edwards25519.Point).ScalarBaseMult(s)
+	publicKey := A.Bytes()
 	copy_AVX2_64(privateKey, seed)
-	copy_AVX2_32(privateKey[32:], A.Bytes())
+	copy_AVX2_32(privateKey[32:], publicKey)
+
 }
 
 func (priv _PrivateKey) __Sign__(rand io.Reader, message []byte, opts crypto.SignerOpts) (signature []byte, err error) {
@@ -118,21 +127,22 @@ func (priv _PrivateKey) __Sign__(rand io.Reader, message []byte, opts crypto.Sig
 		if l := len(context); l > 255 {
 			return nil, errors.New("ed25519: bad Ed25519ph context length: " + strconv.Itoa(l))
 		}
-		signature := alignArray_64(32)
+		signature := alignSliceWithArray_64(64)
+
 		// fmt.Println(len(signature))
-		sign(&signature, priv, message, domPrefixPh, context)
+		sign(signature, priv, message, domPrefixPh, context)
 		// _ = signature[:0]
 
-		return signature[:], nil
+		return signature, nil
 	case hash == crypto.Hash(0) && context != "": // Ed25519ctx
 		if l := len(context); l > 255 {
 			return nil, errors.New("ed25519: bad Ed25519ctx context length: " + strconv.Itoa(l))
 		}
-		var signature = alignArray_64(32)
-		sign(&signature, priv, message, domPrefixCtx, context)
+		var s = alignSliceWithArray_64(64)
+		sign(s, priv, message, domPrefixCtx, context)
 		// bytePools[0].clear()
 
-		return signature[:], nil
+		return s, nil
 	case hash == crypto.Hash(0): // Ed25519
 		return Sign(priv, message), nil
 	default:
@@ -141,17 +151,18 @@ func (priv _PrivateKey) __Sign__(rand io.Reader, message []byte, opts crypto.Sig
 }
 
 func Sign(privateKey _PrivateKey, message []byte) []byte {
-	_ = privateKey[63]
+
+	if len(privateKey) != privateKeyLen {
+		panic("ed25519: bad private key length: " + strconv.Itoa(len(privateKey)))
+	}
 
 	// Outline the function body so that the returned signature can be
 	// stack-allocated.
-	var signature = alignArray_64(32)
+	var signature = make([]byte, signatureSize)
 
-	// fmt.Println(len(signature))
-	sign(&signature, privateKey, message, domPrefixPure, "")
-	// _ = signature[:0]
+	sign(signature, privateKey, message, domPrefixPure, "")
 
-	return signature[:]
+	return signature
 }
 
 func Verify__(publicKey _PublicKey, message, sig []byte) bool {
@@ -159,7 +170,7 @@ func Verify__(publicKey _PublicKey, message, sig []byte) bool {
 }
 
 func verify(publicKey _PublicKey, message, sig []byte, domPrefix, context string) bool {
-	_ = publicKey[31]
+
 	if l := len(publicKey); l != publicKeyLen {
 		panic("ed25519: bad public key length: " + strconv.Itoa(l))
 	}
@@ -202,8 +213,8 @@ func verify(publicKey _PublicKey, message, sig []byte, domPrefix, context string
 	}
 
 	// [S]B = R + [k]A --> [k](-A) + [S]B = R
-	minusA := (&edwards25519.Point{}).Negate(A)
-	R := (&edwards25519.Point{}).VarTimeDoubleScalarBaseMult(k, minusA, S)
+	minusA := new(edwards25519.Point).Negate(A)
+	R := new(edwards25519.Point).VarTimeDoubleScalarBaseMult(k, minusA, S)
 	kh.Reset()
 	sha512Pool.Put(kh)
 	hramDigest = hramDigest[:0]
@@ -212,8 +223,7 @@ func verify(publicKey _PublicKey, message, sig []byte, domPrefix, context string
 	return bytes.Equal(sig[:32], R.Bytes())
 }
 
-func sign(signature *[64]byte, privateKey, message []byte, domPrefix, context string) {
-	_ = privateKey[63]
+func sign(signature, privateKey, message []byte, domPrefix, context string) {
 
 	if l := len(privateKey); l != privateKeyLen {
 		panic("ed25519: bad private key length: " + strconv.Itoa(l))
@@ -221,7 +231,12 @@ func sign(signature *[64]byte, privateKey, message []byte, domPrefix, context st
 	seed, publicKey := privateKey[:seedLen], privateKey[seedLen:]
 
 	h := _sum512_(seed)
-	s, err := edwards25519.NewScalar().SetBytesWithClamping(h[:32])
+	h[0] &= 248
+	h[31] &= 63
+	h[31] |= 64
+	var hbytes = alignSliceWithArray_64(32)
+	copy_AVX2_32(hbytes[:32], h[:32])
+	s, err := edwards25519.NewScalar().SetUniformBytes(hbytes)
 	if err != nil {
 		panic("ed25519: internal error: setting scalar failed")
 	}
@@ -229,9 +244,9 @@ func sign(signature *[64]byte, privateKey, message []byte, domPrefix, context st
 
 	mh := sha512Pool.Get() //2
 	if domPrefix != domPrefixPure {
-		mh.Write([]byte(domPrefix))
+		mh.Write(lowlevelfunctions.StringToBytes(domPrefix))
 		mh.Write([]byte{byte(len(context))})
-		mh.Write([]byte(context))
+		mh.Write(lowlevelfunctions.StringToBytes(context))
 	}
 	mh.Write(prefix)
 	mh.Write(message)
@@ -246,13 +261,13 @@ func sign(signature *[64]byte, privateKey, message []byte, domPrefix, context st
 	mh.Reset()
 	sha512Pool.Put(mh)
 
-	R := (&edwards25519.Point{}).ScalarBaseMult(r)
+	R := new(edwards25519.Point).ScalarBaseMult(r)
 
 	kh := sha512Pool.Get() // 3
 	if domPrefix != domPrefixPure {
-		kh.Write([]byte(domPrefix))
+		kh.Write(lowlevelfunctions.StringToBytes(domPrefix))
 		kh.Write([]byte{byte(len(context))})
-		kh.Write([]byte(context))
+		kh.Write(lowlevelfunctions.StringToBytes(context))
 	}
 	kh.Write(R.Bytes())
 	kh.Write(publicKey)
@@ -329,7 +344,7 @@ func __generateKey__(rand io.Reader) (_PublicKey, _PrivateKey, error) {
 		rand = cryptorand.Reader
 	}
 
-	var seed = alignArray_32(32)
+	var seed = [32]byte{}
 	if _, err := io.ReadFull(rand, seed[:]); err != nil {
 		return nil, nil, err
 	}
@@ -337,20 +352,20 @@ func __generateKey__(rand io.Reader) (_PublicKey, _PrivateKey, error) {
 	privateKey := NewKeyFromSeed(seed[:])
 	// _ = seed[:0]
 
-	publicKey := alignArray_32(32)
+	publicKey := alignSliceWithArray_32(32)
 
-	copy_AVX2_32(publicKey[:], privateKey[32:])
+	copy_AVX2_32(publicKey, privateKey[32:])
 
 	// _ = publicKey[:0]
 
-	return publicKey[:], privateKey, nil
+	return publicKey, privateKey, nil
 }
 
 func b_32(s []byte) [32]byte {
 	return *(*[32]byte)(unsafe.Pointer(&s))
 }
 
-func b_64(s []byte) [64]byte {
+func b_64(s []byte) *[64]byte {
 
-	return *(*[64]byte)(unsafe.Pointer(&s))
+	return (*[64]byte)(unsafe.Pointer(&s))
 }
