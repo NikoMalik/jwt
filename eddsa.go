@@ -19,10 +19,6 @@ type KeySource interface {
 	~[]byte | ~string | ~*[privateKeyLen]byte | ~[privateKeyLen]byte
 }
 
-type _PrivateKey []byte
-
-type _PublicKey []byte
-
 const (
 	privateKeyLen = ed25519.PrivateKeySize // 64
 	publicKeyLen  = ed25519.PublicKeySize  //32
@@ -32,8 +28,8 @@ const (
 )
 
 type _EDDSA struct {
-	PrivateKey _PrivateKey
-	PublicKey  _PublicKey
+	PrivateKey PrivateKeyEd
+	PublicKey  PublicKeyEd
 }
 
 func (e *_EDDSA) Reset() {
@@ -49,14 +45,14 @@ func (e *_EDDSA) Close() {
 	return
 }
 
-func (e *_EDDSA) Bytes() _PrivateKey { return e.PrivateKey }
+func (e *_EDDSA) Bytes() PrivateKeyEd { return e.PrivateKey }
 
 func (e *_EDDSA) SignSize() int { return len(e.PrivateKey) }
 
 func (e *_EDDSA) Algorithm() Algorithm { return EDDSA }
 
 func NewEddsa(private []byte) (*_EDDSA, error) {
-	var privKey _PrivateKey = alignSlice(privateKeyLen, 32)
+	var privKey PrivateKeyEd = alignSlice(privateKeyLen, 32)
 	if privKey == nil || len(privKey) == 0 {
 		return nil, ErrCannotGetObjFromPool
 	}
@@ -76,7 +72,7 @@ func NewEddsa(private []byte) (*_EDDSA, error) {
 }
 
 func NewEDDSA[T KeySource](keySource T) (*_EDDSA, error) {
-	var privKey _PrivateKey = alignSlice(privateKeyLen, 32)
+	var privKey PrivateKeyEd = alignSlice(privateKeyLen, 32)
 	if privKey == nil || len(privKey) == 0 {
 		return nil, ErrCannotGetObjFromPool
 	}
@@ -96,7 +92,7 @@ func NewEDDSA[T KeySource](keySource T) (*_EDDSA, error) {
 			return nil, err
 		}
 		if len(decoded) == privateKeyLen {
-			privKey = *(*_PrivateKey)(unsafe.Pointer(&decoded))
+			privKey = *(*PrivateKeyEd)(unsafe.Pointer(&decoded))
 
 		}
 
@@ -112,7 +108,7 @@ func NewEDDSA[T KeySource](keySource T) (*_EDDSA, error) {
 
 		// Treat byte slice as a private key or seed based on length
 		if len(v) == privateKeyLen {
-			privKey = *(*_PrivateKey)(unsafe.Pointer(&v))
+			privKey = *(*PrivateKeyEd)(unsafe.Pointer(&v))
 		} else if len(v) == seedLen {
 			privKey = NewKeyFromSeed(v)
 		} else {
@@ -125,7 +121,7 @@ func NewEDDSA[T KeySource](keySource T) (*_EDDSA, error) {
 		slice.Len = privateKeyLen
 		slice.Cap = privateKeyLen
 
-		privKey = *(*_PrivateKey)(unsafe.Pointer(&slice))
+		privKey = *(*PrivateKeyEd)(unsafe.Pointer(&slice))
 	case *[privateKeyLen]byte: // pointer to private key
 
 		slice := *(*reflect.SliceHeader)(unsafe.Pointer(&v))
@@ -133,7 +129,7 @@ func NewEDDSA[T KeySource](keySource T) (*_EDDSA, error) {
 		slice.Len = privateKeyLen
 		slice.Cap = privateKeyLen
 
-		privKey = *(*_PrivateKey)(unsafe.Pointer(&slice))
+		privKey = *(*PrivateKeyEd)(unsafe.Pointer(&slice))
 
 	default:
 		return nil, ErrInvalid
@@ -153,7 +149,7 @@ func (e *_EDDSA) Sign(payload []byte) ([]byte, error) {
 	if e.PrivateKey == nil || len(e.PrivateKey) == 0 {
 		return nil, fmt.Errorf("private key is not initialized")
 	}
-	signature := Sign(e.PrivateKey, payload)
+	signature := Sign(e.PrivateKey, payload, domPrefixPure, "")
 
 	return signature, nil
 }
@@ -177,7 +173,7 @@ func (e *_EDDSA) VerifyToken(token *Token[*_EDDSA]) error {
 	return nil
 }
 
-func GenerateEDDSARandom(rand io.Reader) (_PrivateKey, error) {
+func GenerateEDDSARandom(rand io.Reader) (PrivateKeyEd, error) {
 	if rand == nil {
 		rand = cryptorand.Reader
 	}
@@ -194,6 +190,6 @@ func GenerateEDDSARandom(rand io.Reader) (_PrivateKey, error) {
 
 }
 
-func (p _PrivateKey) Bytes() []byte {
+func (p PrivateKeyEd) Bytes() []byte {
 	return p
 }

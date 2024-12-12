@@ -32,7 +32,7 @@ func TestEmptyMessage(t *testing.T) {
 	message := []byte("") // Empty message
 
 	// Sign the empty message
-	signature := Sign(privateKey, message)
+	signature := Sign(privateKey, message, domPrefixPure, "")
 
 	// Verify the signature of the empty message
 	if !Verify__(publicKey, message, signature) {
@@ -59,7 +59,7 @@ func TestInvalidPrivateKey(t *testing.T) {
 	}
 
 	message := []byte("Test message")
-	signature := Sign(invalidPrivateKey[:], message)
+	signature := Sign(invalidPrivateKey[:], message, domPrefixPure, "")
 
 	// Verify with the valid public key
 	if Verify__(publicKey, message, signature) {
@@ -78,7 +78,7 @@ func TestVerifyWithDifferentPublicKey(t *testing.T) {
 	message := []byte("Test message")
 
 	// Sign the message with the first private key
-	signature := Sign(privateKey, message)
+	signature := Sign(privateKey, message, domPrefixPure, "")
 
 	// Verify the signature with the second public key (should fail)
 	isValid := Verify__(publickey2, message, signature)
@@ -93,7 +93,7 @@ func TestAlias(t *testing.T) {
 	public, private, _ := __generateKey__(nil)
 
 	message := []byte("test message")
-	sig := Sign(private, message)
+	sig := Sign(private, message, domPrefixPure, "")
 	if !Verify__(public, message, sig) {
 		t.Errorf("valid signature rejected")
 	}
@@ -115,9 +115,9 @@ func TestMultipleKeyPairs(t *testing.T) {
 	message := []byte("Test message")
 
 	// Sign the message with both private keys
-	signature1 := Sign(privateKey1, message)
+	signature1 := Sign(privateKey1, message, domPrefixPure, "")
 
-	signature2 := Sign(privateKey2, message)
+	signature2 := Sign(privateKey2, message, domPrefixPure, "")
 
 	// Verify the first signature with the first public key
 	if !Verify__(publicKey1, message, signature1) {
@@ -150,7 +150,7 @@ func TestSignAndVerify(t *testing.T) {
 	message := []byte("Test message for signing")
 
 	// Sign the message
-	signature := Sign(privateKey, message)
+	signature := Sign(privateKey, message, domPrefixPure, "")
 
 	// Verify the signature
 	if !Verify__(publicKey, message, signature) {
@@ -162,7 +162,7 @@ func TestTypeAlias(t *testing.T) {
 	public, private, _ := __generateKey__(nil)
 
 	message := []byte("test message")
-	sig := Sign(private, message)
+	sig := Sign(private, message, domPrefixPure, "")
 	if !Verify__(public, message, sig) {
 		t.Errorf("valid signature rejected")
 	}
@@ -178,7 +178,7 @@ func TestSignAndVerifyWithHash(t *testing.T) {
 	message := []byte("test message")
 
 	hashed := sha512.Sum512(message)
-	signature := Sign(privateKey, hashed[:])
+	signature := Sign(privateKey, hashed[:], domPrefixPure, "")
 
 	// Verify the signature using the hashed message
 	if !Verify__(publicKey, hashed[:], signature) {
@@ -214,7 +214,7 @@ func TestTamperedMessage(t *testing.T) {
 	}
 
 	message := []byte("Original message")
-	signature := Sign(privateKey, message)
+	signature := Sign(privateKey, message, domPrefixPure, "")
 
 	// Tamper with the message
 	message[0] ^= 0xFF

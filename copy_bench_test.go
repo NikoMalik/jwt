@@ -172,8 +172,8 @@ func BenchmarkCopyAVX2_32(b *testing.B) {
 }
 
 func BenchmarkCopyAVX2_32_ALIGNED_ARRAY(b *testing.B) {
-	src := alignArray_32(32)
-	dst := alignArray_32(32)
+	src := alignArray_32()
+	dst := alignArray_32()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -183,8 +183,8 @@ func BenchmarkCopyAVX2_32_ALIGNED_ARRAY(b *testing.B) {
 }
 
 func BenchmarkCopyAVX2_64_Unsafe(b *testing.B) {
-	src := alignArray_unsafe_64(32) // Align to 64-byte boundary
-	dst := alignArray_unsafe_64(32) // Align to 64-byte boundary
+	src := alignArray_unsafe_64() // Align to 64-byte boundary
+	dst := alignArray_unsafe_64() // Align to 64-byte boundary
 	s := *(*[64]byte)(src)
 	d := *(*[64]byte)(dst)
 
@@ -194,21 +194,22 @@ func BenchmarkCopyAVX2_64_Unsafe(b *testing.B) {
 	}
 }
 
-func BenchmarkCopyAVX2_64_UNSAFE_NEWSLICE(b *testing.B) {
-	src := alignArray_unsafe_64(32)
-	dst := alignArray_unsafe_64(32)
-	s := t0_slice(src, 64)
-	d := t0_slice(dst, 64)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		copy_AVX2_64(*s, *d)
-	}
-}
+//
+// func BenchmarkCopyAVX2_64_UNSAFE_NEWSLICE(b *testing.B) {
+// 	src := alignArray_unsafe_64()
+// 	dst := alignArray_unsafe_64()
+// 	s := t0_slice(src, 64) // pointer is gone...
+// 	d := t0_slice(dst, 64)
+//
+// 	b.ResetTimer()
+// 	for i := 0; i < b.N; i++ {
+// 		copy_AVX2_64(s, d)
+// 	}
+// }
 
 func BenchmarkCopyAligned_64(b *testing.B) {
-	src := alignArray_64(32)
-	dst := alignArray_64(32)
+	src := alignArray_64()
+	dst := alignArray_64()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -286,17 +287,53 @@ func BenchmarkDefaultArray_1_32(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		copy_AVX2_32(*s, *d)
+		copy_AVX2_32(s, d)
+	}
+}
+
+func BenchmarkAlignedArray_1_32_unsafe(b *testing.B) {
+	stc := alignArray_unsafe_32()
+	dst := alignArray_unsafe_32()
+	s := t0_slice(unsafe.Pointer(&stc), 32)
+	d := t0_slice(unsafe.Pointer(&dst), 32)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		copy_AVX2_32(s, d)
+	}
+}
+
+func BenchmarkAlignedArray_1_32_unsafe_withoutvariable(b *testing.B) {
+	stc := alignArray_unsafe_32()
+	dst := alignArray_unsafe_32()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		copy_AVX2_32(t0_slice(unsafe.Pointer(&stc), 32), t0_slice(unsafe.Pointer(&dst), 32))
 	}
 }
 
 func BenchmarkAlignedArray_2_32(b *testing.B) {
-	stc := alignArray_32(32)
-	dst := alignArray_32(32)
+	stc := alignArray_32()
+	dst := alignArray_32()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		copy_AVX2_32(stc[:], dst[:])
+	}
+}
+
+func BenchmarkAlignedArray_2_32_withvariable(b *testing.B) {
+
+	stc := alignArray_32()
+	dst := alignArray_32()
+
+	s := stc[:]
+	d := dst[:]
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		copy_AVX2_32(s, d)
 	}
 }
 

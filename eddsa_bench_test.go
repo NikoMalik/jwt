@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	"crypto/ed25519"
 	cryptorand "crypto/rand"
 	"fmt"
 	"runtime"
@@ -25,6 +26,7 @@ var keyByte = must(GenerateEDDSARandom(cryptorand.Reader))
 
 func BenchmarkSign(b *testing.B) {
 	// Enable allocation reporting
+
 	b.ReportAllocs()
 
 	eddsa, err := NewEddsa(keyByte)
@@ -41,7 +43,27 @@ func BenchmarkSign(b *testing.B) {
 		_, err := eddsa.Sign(payload)
 
 		if err != nil {
-			b.Fatalf("Sign failed: %v", err)
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkSignEd(b *testing.B) {
+	b.ReportAllocs()
+
+	eddsa, err := NewEddsa(keyByte)
+
+	if err != nil {
+		b.Fatalf("Failed to create EDDSA instance: %v", err)
+	}
+
+	payload := make([]byte, 1024)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = ed25519.Sign(ed25519.PrivateKey(eddsa.PrivateKey), payload)
+		if err != nil {
+			b.Fatal(err)
 		}
 	}
 }

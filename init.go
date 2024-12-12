@@ -5,7 +5,10 @@ import (
 	"crypto/sha512"
 	"fmt"
 	"hash"
+
 	"unsafe"
+
+	_ "net/http/pprof"
 
 	lowlevelfunctions "github.com/NikoMalik/low-level-functions"
 	"github.com/klauspost/cpuid/v2"
@@ -21,15 +24,20 @@ func init() {
 	},
 	)
 	base64BufPool = nObjPool[*[]byte](2, func() *[]byte {
-		buf := []byte{base64BufferSize: 0}
+		buf := lowlevelfunctions.MakeNoZero(base64BufferSize)
 		return &buf
 
 	})
 
 	digestPool = nObjPool[[]byte](4, func() []byte {
 		digest := lowlevelfunctions.MakeNoZeroCap(0, sha512.Size)
-		return digest
+		return noescapeBytes(&digest)
 	})
+
+	//
+	//prof {
+
+	//}
 
 	// // possible solution to escape zen1/zen2 (need more tests with zen1/zen2)
 	// if useAVX2 {
@@ -64,12 +72,16 @@ const (
 )
 
 var (
+	bufferPool = nObjPool[*[]byte](4, func() *[]byte {
+		buf := noescape(alignArray_unsafe_64())
+		t0 := t0_slice(buf, 64)
+		return &t0
+	})
 	alignedPool = nObjPool[*AlignedBuffer](4, func() *AlignedBuffer {
 		buf := NewAlignedBuffer()
 		return buf
 	})
 
-	bufferPool    *objPool[*[]byte]
 	base64BufPool *objPool[*[]byte]
 	signaturePool *objPool[[]byte]
 	_CPU_         = cpuid.CPU

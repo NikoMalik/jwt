@@ -10,7 +10,7 @@ func TestAligns(t *testing.T) {
 	for i := range randomSeed {
 		randomSeed[i] = byte(i)
 	}
-	newArray := alignArray_32(32)
+	newArray := alignArray_32()
 	copy_AVX2_32(newArray[:], randomSeed)
 
 	fmt.Println(newArray)

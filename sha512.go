@@ -323,11 +323,13 @@ func (d *digest) Size() int {
 	return d.size
 }
 
-func _sum512_(data []byte) [64]byte {
+func _sum512_(data []byte) (sum [64]byte) {
 
-	d := &digest{size: size512}
+	d := digest{size: size512}
 	d.Reset()
-	_, _ = d.Write(data)
+	d.Write(data)
 
-	return d.checkSum()
+	d.Sum(sum[:0])
+
+	return sum
 }

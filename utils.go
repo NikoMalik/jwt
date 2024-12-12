@@ -12,6 +12,9 @@ import (
 // Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+const (
+	alignment = 32
+)
 
 var (
 	_K = [...]uint64{
@@ -201,7 +204,7 @@ func reset_32(slice []byte) []byte {
 	return slice
 }
 
-func alignArray_32(alignment int) [32]byte {
+func alignArray_32() [32]byte {
 	var buf [32 + 31]byte // 31 max padding
 	// base := uintptr(unsafe.Pointer(&buf[0]))
 	offset := uintptr(unsafe.Pointer(&buf[0])) % uintptr(alignment)
@@ -215,7 +218,7 @@ func alignArray_32(alignment int) [32]byte {
 	return *(*[32]byte)(unsafe.Pointer(alignedPtr))
 }
 
-func alignArray_64(alignment int) [64]byte {
+func alignArray_64() [64]byte {
 
 	var buf [64 + 31]byte
 	// base := uintptr(unsafe.Pointer(&buf[0]))
@@ -232,8 +235,8 @@ func alignArray_64(alignment int) [64]byte {
 	return *(*[64]byte)(unsafe.Pointer(alignedPtr))
 }
 
-func alignArray_unsafe_32(alignment int) unsafe.Pointer {
-	var buf [32 + 31]byte // Create a larger buffer for alignment
+func alignArray_unsafe_32() unsafe.Pointer {
+	var buf [32 + 31]byte
 	offset := uintptr(unsafe.Pointer(&buf[0])) % uintptr(alignment)
 
 	var alignedPtr unsafe.Pointer
@@ -243,23 +246,33 @@ func alignArray_unsafe_32(alignment int) unsafe.Pointer {
 		alignedPtr = unsafe.Pointer(uintptr(unsafe.Pointer(&buf[0])) + uintptr(alignment) - offset)
 	}
 
-	return alignedPtr
+	return noescape(alignedPtr)
 }
 
-func alignArray_unsafe_64(alignment int) unsafe.Pointer {
-	var buf [64 + 31]byte // Create a larger buffer for alignment
-	offset := uintptr(unsafe.Pointer(&buf[0])) % uintptr(alignment)
+func noescapeBytes(s *[]byte) []byte {
+	return *(*[]byte)(noescape(unsafe.Pointer(s)))
+}
+
+func noescape_64_array(s *[64]byte) [64]byte {
+	return *(*[64]byte)(noescape(unsafe.Pointer(s)))
+}
+
+func alignArray_unsafe_64() unsafe.Pointer {
+	var buf [64]byte
+	offset := uintptr(noescape(unsafe.Pointer(&buf[0]))) % uintptr(alignment)
 
 	var alignedPtr unsafe.Pointer
 	if offset == 0 {
-		alignedPtr = unsafe.Pointer(&buf[0])
+		alignedPtr = noescape(unsafe.Pointer(&buf[0]))
 	} else {
-		alignedPtr = unsafe.Pointer(uintptr(unsafe.Pointer(&buf[0])) + uintptr(alignment) - offset)
+		alignedPtr = noescape(unsafe.Pointer(uintptr(unsafe.Pointer(&buf[0])) + uintptr(alignment) - offset))
 	}
 
-	return alignedPtr
+	return noescape(alignedPtr)
 }
 
+//go:nosplit
+//go:nocheckptr
 func noescape(up unsafe.Pointer) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(up) ^ 0)
 }
@@ -270,13 +283,13 @@ type slice_example struct {
 	cap  int
 }
 
-func t0_slice(array unsafe.Pointer, lent int) *[]byte {
+func t0_slice(array unsafe.Pointer, lent int) []byte {
 	headerSlice := slice_example{
 		len:  lent,
 		cap:  lent,
 		data: array,
 	}
-	return (*[]byte)(noescape(unsafe.Pointer(&headerSlice)))
+	return *(*[]byte)(unsafe.Pointer(&headerSlice))
 }
 
 //go:noinline
@@ -296,22 +309,24 @@ func alignSlice(size int, alignment int) []byte {
 }
 
 func alignSliceWithArray_32_2(alignment int) []byte {
-	array := alignArray_unsafe_32(alignment)
+	array := alignArray_unsafe_32()
 	return unsafe.Slice((*byte)(array), 32)
 }
 
+//go:nosplit
 func alignSliceWithArray_32(alignment int) []byte {
-	array := alignArray_unsafe_32(alignment)
-	return *t0_slice(array, 32)
+	array := noescape(alignArray_unsafe_32())
+	return t0_slice(array, 32)
 }
 
+//go:nosplit
 func alignSliceWithArray_64(alignment int) []byte {
-	array := alignArray_unsafe_64(alignment)
-	return *t0_slice(array, 64)
+	array := noescape(alignArray_unsafe_64())
+	return t0_slice(array, 64)
 }
 
 func alignSliceWithArray_64_2(alignment int) []byte {
-	array := alignArray_unsafe_64(alignment)
+	array := alignArray_unsafe_64()
 	return unsafe.Slice((*byte)(array), 64)
 }
 
