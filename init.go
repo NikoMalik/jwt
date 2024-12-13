@@ -19,19 +19,11 @@ func init() {
 		fmt.Errorf("unsupported CPU")
 		return
 	}
-	sha512Pool = nObjPool[hash.Hash](4, func() hash.Hash {
-		return _Newi_()
-	},
-	)
+
 	base64BufPool = nObjPool[*[]byte](2, func() *[]byte {
 		buf := lowlevelfunctions.MakeNoZero(base64BufferSize)
 		return &buf
 
-	})
-
-	digestPool = nObjPool[[]byte](4, func() []byte {
-		digest := lowlevelfunctions.MakeNoZeroCap(0, sha512.Size)
-		return noescapeBytes(&digest)
 	})
 
 	//
@@ -72,9 +64,16 @@ const (
 )
 
 var (
-	bufferPool = nObjPool[*[]byte](4, func() *[]byte {
-		buf := noescape(alignArray_unsafe_64())
-		t0 := t0_slice(buf, 64)
+	// sha512Pool = nObjPool[hash.Hash](4, func() hash.Hash {
+	// 	return _Newi_()
+	// })
+	digestPool = nObjPool[[]byte](4, func() []byte {
+		digest := lowlevelfunctions.MakeNoZeroCap(0, sha512.Size)
+		return digest
+	})
+	bufferPool = nObjPool[*[64]byte](1, func() *[64]byte {
+		t0 := [64]byte{}
+
 		return &t0
 	})
 	alignedPool = nObjPool[*AlignedBuffer](4, func() *AlignedBuffer {
@@ -83,9 +82,9 @@ var (
 	})
 
 	base64BufPool *objPool[*[]byte]
-	signaturePool *objPool[[]byte]
-	_CPU_         = cpuid.CPU
-	wantFeatures  = cpuid.CombineFeatures(cpuid.AVX2, cpuid.CLMUL, cpuid.BMI2)
+
+	_CPU_        = cpuid.CPU
+	wantFeatures = cpuid.CombineFeatures(cpuid.AVX2, cpuid.CLMUL, cpuid.BMI2)
 )
 
 type HashBorrower[T hash.Hash] struct {

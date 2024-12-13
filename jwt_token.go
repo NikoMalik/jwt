@@ -114,8 +114,9 @@ func (t *Token[T]) SignedString(key []byte) (string, error) {
 		// TODO
 		// 1.MAKE VARIABLE DECLARATION FOR EDDSA without random
 		ss := *(*[]byte)(unsafe.Pointer(&sst))
+		private, public, _ := GenerateEDDSARandom(cryptorand.Reader)
 
-		eddsa, err := NewEddsa(must(GenerateEDDSARandom(cryptorand.Reader)))
+		eddsa, err := NewEddsa(private, public)
 		if err != nil {
 			return "", err
 		}

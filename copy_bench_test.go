@@ -127,6 +127,28 @@ func BenchmarkCopyAVX2_64(b *testing.B) {
 	// fmt.Println(src)
 }
 
+func BenchmarkCopy_memcopy_64_array(b *testing.B) {
+	var src [64]byte
+	var dst [64]byte
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		memcopy_avx2_64(unsafe.Pointer(&src[0]), unsafe.Pointer(&dst[0]))
+	}
+	// fmt.Println(src)
+}
+
+func BenchmarkCopy_memcopy_64_unsafe_array(b *testing.B) {
+	src := noescape(alignArray_unsafe_64())
+	dst := noescape(alignArray_unsafe_64())
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		memcopy_avx2_64(src, dst)
+	}
+	// fmt.Println(src)
+}
+
 func BenchmarkZEN1_32(b *testing.B) {
 	src := alignSlice(32, 16)
 	dst := alignSlice(len(src), 16)
@@ -134,6 +156,50 @@ func BenchmarkZEN1_32(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		copy_AMD_AVX2_32(src, dst)
+	}
+	// fmt.Println(src)
+}
+
+func BenchmarkCopy_memcopy_32(b *testing.B) {
+	src := alignArray_unsafe_32()
+	dst := alignArray_unsafe_32()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		memcopy_avx2_32(dst, src)
+	}
+	// fmt.Println(src)
+}
+
+func BenchmarkCopy_memcopy_32_aligned(b *testing.B) {
+	src := alignArray_32()
+	dst := alignArray_32()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		memcopy_avx2_32(unsafe.Pointer(&src[0]), unsafe.Pointer(&dst[0]))
+	}
+	// fmt.Println(src)
+}
+
+func BenchmarkCopy_memmove_32(b *testing.B) {
+	src := alignArray_unsafe_32()
+	dst := alignArray_unsafe_32()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		memmove(dst, src, 32)
+	}
+	// fmt.Println(src)
+}
+
+func BenchmarkCopy_memcopy_32_defaultArray(b *testing.B) {
+	var src [32]byte
+	var dst [32]byte
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		memcopy_avx2_32(unsafe.Pointer(&dst[0]), unsafe.Pointer(&src[0]))
 	}
 	// fmt.Println(src)
 }

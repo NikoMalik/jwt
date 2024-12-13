@@ -177,6 +177,13 @@ func _Newi_() hash.Hash {
 	d.Reset()
 	return d
 }
+
+func NewDigest() *digest {
+
+	d := &digest{size: size512}
+	d.Reset()
+	return d
+}
 func (d *digest) Sum(in []byte) []byte {
 
 	// Make a copy of d so that caller can keep writing and summing.
@@ -323,11 +330,12 @@ func (d *digest) Size() int {
 	return d.size
 }
 
-func _sum512_(data []byte) (sum [64]byte) {
+func _sum512_(data []byte) [64]byte {
 
-	d := digest{size: size512}
+	d := &digest{size: size512}
 	d.Reset()
 	d.Write(data)
+	var sum [64]byte
 
 	d.Sum(sum[:0])
 

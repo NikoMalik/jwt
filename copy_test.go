@@ -3,6 +3,7 @@ package jwt
 import (
 	"reflect"
 	"testing"
+	"unsafe"
 
 	lowlevelfunctions "github.com/NikoMalik/low-level-functions"
 )
@@ -12,6 +13,38 @@ var (
 		0, 1, 2, 3, 4, 6, 8, 10, 31, 32, 33, 64, 100, //1024,4096
 	}
 )
+
+func Test_Array_Copy(t *testing.T) {
+	var s = [32]byte{
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+	}
+
+	var d [32]byte
+
+	memcopy_avx2_32(unsafe.Pointer(&d[0]), unsafe.Pointer(&s[0]))
+
+	if !reflect.DeepEqual(s, d) {
+		t.Errorf("Standard copy failed: expected %v, got %v", s, d)
+	}
+	t.Log(d)
+
+	var s1 [64]byte
+
+	var dst = [32]byte{
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+	}
+
+	memcopy_avx2_32(unsafe.Pointer(&s1[0]), unsafe.Pointer(&dst[0]))
+
+	for i, v := range dst {
+		if v != s1[i] {
+			t.Errorf("Standard copy failed: expected %v, got %v", s1, dst)
+		}
+	}
+
+	t.Log(s1)
+}
 
 func Test_Copy(t *testing.T) {
 

@@ -22,14 +22,13 @@ func printAllocations(stage string) {
 	)
 }
 
-var keyByte = must(GenerateEDDSARandom(cryptorand.Reader))
-
 func BenchmarkSign(b *testing.B) {
 	// Enable allocation reporting
+	private, public, _ := GenerateEDDSARandom(cryptorand.Reader)
 
 	b.ReportAllocs()
 
-	eddsa, err := NewEddsa(keyByte)
+	eddsa, err := NewEddsa(private, public)
 	if err != nil {
 		b.Fatalf("Failed to create EDDSA instance: %v", err)
 	}
@@ -51,7 +50,9 @@ func BenchmarkSign(b *testing.B) {
 func BenchmarkSignEd(b *testing.B) {
 	b.ReportAllocs()
 
-	eddsa, err := NewEddsa(keyByte)
+	private, public, _ := GenerateEDDSARandom(cryptorand.Reader)
+
+	eddsa, err := NewEddsa(private, public)
 
 	if err != nil {
 		b.Fatalf("Failed to create EDDSA instance: %v", err)
@@ -61,7 +62,7 @@ func BenchmarkSignEd(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = ed25519.Sign(ed25519.PrivateKey(eddsa.PrivateKey), payload)
+		_ = ed25519.Sign(ed25519.PrivateKey(eddsa.PrivateKey.key[:]), payload)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -70,7 +71,11 @@ func BenchmarkSignEd(b *testing.B) {
 
 func BenchmarkSignAndVerify(b *testing.B) {
 
-	eddsa, err := NewEddsa(keyByte)
+	b.ReportAllocs()
+
+	private, public, _ := GenerateEDDSARandom(cryptorand.Reader)
+
+	eddsa, err := NewEddsa(private, public)
 	if err != nil {
 		b.Fatalf("Failed to create EDDSA instance: %v", err)
 	}
@@ -93,7 +98,9 @@ func BenchmarkSignAndVerify(b *testing.B) {
 func BenchmarkVerify(b *testing.B) {
 	// Generate a random seed or private key to create EDDSA instance
 
-	eddsa, err := NewEddsa(keyByte)
+	private, public, _ := GenerateEDDSARandom(cryptorand.Reader)
+
+	eddsa, err := NewEddsa(private, public)
 	if err != nil {
 		b.Fatalf("Failed to create EDDSA instance: %v", err)
 	}
