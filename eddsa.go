@@ -118,13 +118,13 @@ func NewEddsa(private *PrivateKeyEd, public *PublicKeyEd) (*_EDDSA, error) {
 // 	}, nil
 // }
 
-func (e *_EDDSA) Sign(payload []byte) ([]byte, error) {
+func (e *_EDDSA) Sign(payload []byte) ([64]byte, error) {
 
 	if len(payload) == 0 {
-		return nil, ErrPayloadIsEmpty
+		return [64]byte{}, ErrPayloadIsEmpty
 	}
 	if e.PrivateKey == nil {
-		return nil, fmt.Errorf("private key is not initialized")
+		return [64]byte{}, fmt.Errorf("private key is not initialized")
 	}
 	signature := Sign(e.PrivateKey, payload, domPrefixPure, "")
 

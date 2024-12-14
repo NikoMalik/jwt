@@ -54,12 +54,12 @@ func TestEDDSASignAndVerify(t *testing.T) {
 		t.Fatalf("Sign failed: %v", err)
 	}
 
-	if !eddsa.Verify(message, signature) {
+	if !eddsa.Verify(message, signature[:]) {
 		t.Errorf("Failed to verify signature for valid message")
 	}
 
 	invalidMessage := []byte("modified message")
-	if eddsa.Verify(invalidMessage, signature) {
+	if eddsa.Verify(invalidMessage, signature[:]) {
 		t.Errorf("Signature verification should have failed for invalid message")
 	}
 
@@ -132,7 +132,7 @@ func TestNewEDDSAWithRandomBytes(t *testing.T) {
 	}
 	// fmt.Println(sig)
 
-	valid := eddsa.Verify(message, sig)
+	valid := eddsa.Verify(message, sig[:])
 	if !valid {
 		t.Fatalf("Verification failed")
 	}

@@ -187,8 +187,8 @@ func NewDigest() *digest {
 func (d *digest) Sum(in []byte) []byte {
 
 	// Make a copy of d so that caller can keep writing and summing.
-	d0 := new(digest)
-	*d0 = *d
+
+	d0 := *d
 	hash := d0.checkSum()
 
 	return append(in, hash[:d.size]...)
@@ -293,8 +293,8 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 }
 
 func (d *digest) MarshalBinary() ([]byte, error) {
-	var s [marshaledSize]byte
-	return d.AppendBinary(s[:0])
+
+	return d.AppendBinary(lowlevelfunctions.MakeNoZeroCap(0, marshaledSize))
 }
 
 func (d *digest) AppendBinary(b []byte) ([]byte, error) {
@@ -330,14 +330,11 @@ func (d *digest) Size() int {
 	return d.size
 }
 
-func _sum512_(data []byte) [64]byte {
+func _sum512_(data []byte) (sum [64]byte) {
 
 	d := &digest{size: size512}
 	d.Reset()
 	d.Write(data)
-	var sum [64]byte
-
-	d.Sum(sum[:0])
-
-	return sum
+	sum = d.checkSum()
+	return
 }

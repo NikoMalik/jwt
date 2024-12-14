@@ -110,6 +110,8 @@ func NewKeyFromSeed(seed [32]byte) *PrivateKeyEd {
 func newKeyFromSeed(privateKey *PrivateKeyEd, seed *[seedLen]byte) {
 
 	h := _sum512_(seed[:])
+	clamp(h[:])
+	// reduceModOrder(h[:], false)
 
 	// h[0] &= 248
 	// h[31] &= 63
@@ -119,10 +121,15 @@ func newKeyFromSeed(privateKey *PrivateKeyEd, seed *[seedLen]byte) {
 
 	// memcopy_avx2_32(unsafe.Pointer(&hbytes[0]), unsafe.Pointer(&h[0]))
 	// copy_AVX2_32(res[:32], h[:32])
-	s, err := privateKey.s.SetBytesWithClamping(h[:32])
+	// s, err := privateKey.s.SetBytesWithClamping(h[:32])
+	// if err != nil {
+	// 	panic("ed25519: internal error: setting scalar failed")
+	// }
+	s, err := privateKey.s.SetUniformBytes(h[:])
 	if err != nil {
 		panic("ed25519: internal error: setting scalar failed")
 	}
+
 	// fmt.Println(hbytes)
 	// s, err := edwards25519.NewScalar().SetUniformBytes(res)
 	// if err != nil {
@@ -140,7 +147,7 @@ func newKeyFromSeed(privateKey *PrivateKeyEd, seed *[seedLen]byte) {
 
 }
 
-func (priv *PrivateKeyEd) __Sign__(rand io.Reader, message []byte, opts crypto.SignerOpts) (signature []byte, err error) {
+func (priv *PrivateKeyEd) __Sign__(rand io.Reader, message []byte, opts crypto.SignerOpts) (signature [signatureSize]byte, err error) {
 	hash := opts.HashFunc()
 
 	context := ""
@@ -150,50 +157,49 @@ func (priv *PrivateKeyEd) __Sign__(rand io.Reader, message []byte, opts crypto.S
 	switch {
 	case hash == crypto.SHA512: // Ed25519ph
 		if l := len(message); l != sha512.Size {
-			return nil, errors.New("ed25519: bad Ed25519ph message hash length: " + strconv.Itoa(l))
+			return signature, errors.New("ed25519: bad Ed25519ph message hash length: " + strconv.Itoa(l))
 		}
 		if l := len(context); l > 255 {
-			return nil, errors.New("ed25519: bad Ed25519ph context length: " + strconv.Itoa(l))
+			return signature, errors.New("ed25519: bad Ed25519ph context length: " + strconv.Itoa(l))
 		}
 
 		// fmt.Println(len(signature))
 		var signature [64]byte
-		sign(priv, message, domPrefixPh, context, signature[:])
+
+		sign(priv, message, domPrefixPh, context, &signature)
 
 		// _ = signature[:0]
 
-		return signature[:], nil
+		return signature, nil
 	case hash == crypto.Hash(0) && context != "": // Ed25519ctx
 		if l := len(context); l > 255 {
-			return nil, errors.New("ed25519: bad Ed25519ctx context length: " + strconv.Itoa(l))
+			return signature, errors.New("ed25519: bad Ed25519ctx context length: " + strconv.Itoa(l))
 		}
 		var signature [64]byte
-		sign(priv, message, domPrefixCtx, context, signature[:])
+		sign(priv, message, domPrefixCtx, context, &signature)
 
 		// bytePools[0].clear()
 
-		return signature[:], nil
+		return signature, nil
 	case hash == crypto.Hash(0): // Ed25519
 		return Sign(priv, message, domPrefixPure, ""), nil
 	default:
-		return nil, errors.New("ed25519: expected opts.HashFunc() zero (unhashed message, for standard Ed25519) or SHA-512 (for Ed25519ph)")
+		return signature, errors.New("ed25519: expected opts.HashFunc() zero (unhashed message, for standard Ed25519) or SHA-512 (for Ed25519ph)")
 	}
 }
 
-func Sign(privateKey *PrivateKeyEd, message []byte, domPrefix, context string) []byte {
-	var signature = make([]byte, 64) //TODO MAKE SOMETHING WITH THIS
-	// idk its always alloc in heap
-	noescape(unsafe.Pointer(&signature[0]))
+func Sign(privateKey *PrivateKeyEd, message []byte, domPrefix, context string) [64]byte {
+	var signature [signatureSize]byte
 
-	sign(privateKey, message, domPrefix, context, signature)
+	sign(privateKey, message, domPrefix, context, &signature)
 
 	return signature
 
 }
 
-func sign(privateKey *PrivateKeyEd, message []byte, domPrefix, context string, s0 []byte) {
-
-	_, publicKey := privateKey.key[:seedLen], privateKey.key[seedLen:]
+func sign(privateKey *PrivateKeyEd, message []byte, domPrefix, context string, s0 *[64]byte) {
+	//seed = privateKey.key[:seedLen]
+	publicKey := privateKey.key[seedLen:]
 
 	// h := _sum512_(seed)
 

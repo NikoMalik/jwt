@@ -36,7 +36,7 @@ func TestEmptyMessage(t *testing.T) {
 	signature := Sign(privateKey, message, domPrefixPure, "")
 
 	// Verify the signature of the empty message
-	if !Verify__(publicKey, message, signature) {
+	if !Verify__(publicKey, message, signature[:]) {
 		t.Errorf("Signature verification failed for empty message")
 	}
 }
@@ -93,7 +93,7 @@ func TestVerifyWithDifferentPublicKey(t *testing.T) {
 	signature := Sign(privateKey, message, domPrefixPure, "")
 
 	// Verify the signature with the second public key (should fail)
-	isValid := Verify__(publickey2, message, signature)
+	isValid := Verify__(publickey2, message, signature[:])
 	if isValid {
 		t.Errorf("Signature verification succeeded with a different public key")
 	} else {
@@ -106,7 +106,7 @@ func TestAlias(t *testing.T) {
 
 	message := []byte("test message")
 	sig := Sign(private, message, domPrefixPure, "")
-	if !Verify__(public, message, sig) {
+	if !Verify__(public, message, sig[:]) {
 		t.Errorf("valid signature rejected")
 	}
 }
@@ -132,20 +132,20 @@ func TestMultipleKeyPairs(t *testing.T) {
 	signature2 := Sign(privateKey2, message, domPrefixPure, "")
 
 	// Verify the first signature with the first public key
-	if !Verify__(publicKey1, message, signature1) {
+	if !Verify__(publicKey1, message, signature1[:]) {
 		t.Errorf("Signature verification failed for first key pair")
 	}
 
 	// Verify the second signature with the second public key
-	if !Verify__(publicKey2, message, signature2) {
+	if !Verify__(publicKey2, message, signature2[:]) {
 		t.Errorf("Signature verification failed for second key pair")
 	}
 
 	// Ensure the signatures don't match with the wrong public keys
-	if Verify__(publicKey2, message, signature1) {
+	if Verify__(publicKey2, message, signature1[:]) {
 		t.Errorf("Signature verification succeeded with wrong public key")
 	}
-	if Verify__(publicKey1, message, signature2) {
+	if Verify__(publicKey1, message, signature2[:]) {
 		t.Errorf("Signature verification succeeded with wrong public key")
 	}
 }
@@ -165,7 +165,7 @@ func TestSignAndVerify(t *testing.T) {
 	signature := Sign(privateKey, message, domPrefixPure, "")
 
 	// Verify the signature
-	if !Verify__(publicKey, message, signature) {
+	if !Verify__(publicKey, message, signature[:]) {
 		t.Errorf("Signature verification failed")
 	}
 }
@@ -175,7 +175,7 @@ func TestTypeAlias(t *testing.T) {
 
 	message := []byte("test message")
 	sig := Sign(private, message, domPrefixPure, "")
-	if !Verify__(public, message, sig) {
+	if !Verify__(public, message, sig[:]) {
 		t.Errorf("valid signature rejected")
 	}
 }
@@ -193,7 +193,7 @@ func TestSignAndVerifyWithHash(t *testing.T) {
 	signature := Sign(privateKey, hashed[:], domPrefixPure, "")
 
 	// Verify the signature using the hashed message
-	if !Verify__(publicKey, hashed[:], signature) {
+	if !Verify__(publicKey, hashed[:], signature[:]) {
 		t.Errorf("SHA-512 signature verification failed")
 	}
 }
@@ -213,7 +213,7 @@ func TestSignAndVerifyWithContext(t *testing.T) {
 		t.Fatalf("Signing with context failed: %v", err)
 	}
 
-	if !verify(publicKey, message, signature, domPrefixCtx, context) {
+	if !verify(publicKey, message, signature[:], domPrefixCtx, context) {
 		t.Errorf("Contextual signature verification failed")
 	}
 }
@@ -231,7 +231,7 @@ func TestTamperedMessage(t *testing.T) {
 	// Tamper with the message
 	message[0] ^= 0xFF
 
-	if Verify__(publicKey, message, signature) {
+	if Verify__(publicKey, message, signature[:]) {
 		t.Errorf("Signature verification succeeded on tampered message")
 	}
 }
@@ -252,7 +252,7 @@ func TestTamperedSignature(t *testing.T) {
 	// Tamper with the signature
 	signature[0] ^= 0xFF
 
-	if Verify__(publicKey, message, signature) {
+	if Verify__(publicKey, message, signature[:]) {
 		t.Errorf("Signature verification succeeded on tampered signature")
 	}
 }

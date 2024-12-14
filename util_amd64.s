@@ -15,3 +15,6 @@ _entry:
 _stack_grow:
     CALL runtime·morestack_noctxt<>(SB)
     JMP  _entry
+
+
+

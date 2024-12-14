@@ -129,7 +129,7 @@ func (t *Token[T]) SignedString(key []byte) (string, error) {
 		tt := *buf
 		encodedLen := base64EncodedLen(len(sig))
 		tt = tt[:encodedLen] // dst := tt[:encodedlen]
-		base64Encode(tt, sig)
+		base64Encode(tt, sig[:])
 		builder.Write(sst)
 		builder.WriteByte('.')
 		builder.Write(tt)

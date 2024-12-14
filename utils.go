@@ -14,6 +14,7 @@ import (
 // license that can be found in the LICENSE file.
 const (
 	alignment = 32
+	paramB    = 256 / 8
 )
 
 var (
@@ -119,6 +120,13 @@ var (
 	}
 )
 
+//go:nosplit
+//go:noinline
+func clamp(k []byte) {
+	k[0] &= 248
+	k[paramB-1] = (k[paramB-1] & 127) | 64
+}
+
 type noCopy struct{}
 
 func (*noCopy) Lock()   {}
@@ -163,6 +171,7 @@ func must[T any](v T, err error) T {
 }
 
 //go:nosplit
+//go:noescape
 func MoreStack(size uintptr)
 
 func mustok(err error) {
@@ -383,8 +392,8 @@ func alignGeneric[T any](size int, alignment int) []T {
 
 	return buf[alignment-offset : alignment-offset+size]
 }
-
 func BePutUint64(b []byte, v uint64) {
+
 	_ = b[7] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v >> 56)
 	b[1] = byte(v >> 48)

@@ -87,7 +87,7 @@ func BenchmarkSignAndVerify(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		valid := eddsa.Verify(payload, signature)
+		valid := eddsa.Verify(payload, signature[:])
 		if !valid {
 			b.Fatalf("Verification failed :%v", valid)
 		}
@@ -115,7 +115,7 @@ func BenchmarkVerify(b *testing.B) {
 	// Run the benchmark for Verify
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if !eddsa.Verify(payload, signature) {
+		if !eddsa.Verify(payload, signature[:]) {
 			b.Fatalf("Verification failed")
 		}
 
