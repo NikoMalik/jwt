@@ -128,9 +128,9 @@ func (e *_EDDSA) Sign(payload []byte) ([64]byte, error) {
 	}
 	signature := Sign(e.PrivateKey, payload, domPrefixPure, "")
 
-	return signature, nil
+	return signature, nil // return sign
 }
-func (e *_EDDSA) Verify(payload []byte, sig []byte) bool {
+func (e *_EDDSA) Verify(payload []byte, sig []byte) bool { // need sign
 	if payload == nil || len(payload) == 0 {
 		return false
 	}
@@ -138,17 +138,18 @@ func (e *_EDDSA) Verify(payload []byte, sig []byte) bool {
 	return Verify__(e.PublicKey, payload, sig)
 }
 
-func (e *_EDDSA) VerifyToken(token *Token[*_EDDSA]) error {
-	switch {
-	case !token.isValid():
-		return ErrTokenIsINVALID
-	case !constTimeEqual(token.header.Algorithm.String(), EDDSA.String()):
-		return ErrInvalid
-	case !e.Verify(token.PayloadPart(), token.Signature()):
-		return ErrSignatureInvalid
-	}
-	return nil
-}
+//
+// func (e *_EDDSA) VerifyToken(token *Token[*_EDDSA]) error {
+// 	switch {
+// 	case !token.isValid():
+// 		return ErrTokenIsINVALID
+// 	case !constTimeEqual(token.header.Algorithm.String(), EDDSA.String()):
+// 		return ErrInvalid
+// 	case !e.Verify(token.BeforeSignature(), token.Signature()):
+// 		return ErrSignatureInvalid
+// 	}
+// 	return nil
+// }
 
 func GenerateEDDSARandom(rand io.Reader) (*PrivateKeyEd, *PublicKeyEd, error) {
 	if rand == nil {

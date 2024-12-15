@@ -13,13 +13,12 @@ import (
 
 // https://datatracker.ietf.org/doc/html/rfc7519
 
-type TokenOption func(*Token[any])
-
 // xxxxx.yyyyy.zzzzz
 type Token[T any] struct {
-	payload *Payload // second segment
-	header  *Header  // Header is the first segment of the token in decoded form
-	raw     []byte
+	payload   *Payload // second segment
+	header    *Header  // Header is the first segment of the token in decoded form
+	raw       []byte
+	signature [64]byte
 	// signature []byte // HMACSHA256(base64UrlEncode(header) + "." + base64UrlEncode(payload).secret)
 	//encoded header, the encoded payload, a secret, the algorithm specified in the header, and sign that.
 	sep1, sep2 int32
@@ -60,15 +59,14 @@ func (t *Token[T]) SetToken(token []byte, sep1, sep2 int32) {
 
 }
 
-func (t *Token[T]) PayloadPart() []byte {
+func (t *Token[T]) BeforeSignature() []byte {
 	return t.raw[:t.sep2]
 }
-
 func (t *Token[T]) HeaderPart() []byte {
 	return t.raw[:t.sep1]
 }
 
-func (t *Token[T]) ClaimsPart() []byte {
+func (t *Token[T]) PayloadPart() []byte {
 	return t.raw[t.sep1+1 : t.sep2]
 }
 
@@ -142,4 +140,49 @@ func (t *Token[T]) SignedString(key []byte) (string, error) {
 	}
 
 	return "", nil
+}
+
+func (t *Token[T]) SignedEddsa(privateKey *PrivateKeyEd, publicKey *PublicKeyEd) (string, error) {
+	sst := t.SigningString()
+	var builder = bufStringPool.Get()
+	ss := *(*[]byte)(unsafe.Pointer(&sst))
+	eddsa, err := NewEddsa(privateKey, publicKey)
+	if err != nil {
+		return "", err
+	}
+
+	sig, err := eddsa.Sign(ss)
+	if err != nil {
+		return "", err
+	}
+	t.signature = sig
+	buf := base64BufPool.Get()
+	tt := *buf
+	encodedLen := base64EncodedLen(len(sig))
+	tt = tt[:encodedLen] // dst := tt[:encodedlen]
+	base64Encode(tt, sig[:])
+	builder.Write(sst)
+	builder.WriteByte('.')
+	builder.Write(tt)
+	t.raw = builder.Bytes()
+	signedString := builder.String()
+	builder.Reset()
+	bufStringPool.Put(builder)
+	base64BufPool.Put(buf)
+	return signedString, nil
+
+}
+
+func (t *Token[T]) VerifyEddsa(public *PublicKeyEd) (bool, error) {
+	// if !t.valid {
+	// 	return false, ErrInvalid
+	// }
+
+	signingString := t.BeforeSignature()
+	// fmt.Println(string(signingString))
+
+	valid := (&_EDDSA{PublicKey: public}).Verify(signingString, t.signature[:])
+
+	return valid, nil
+
 }

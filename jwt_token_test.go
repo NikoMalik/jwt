@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	cryptorand "crypto/rand"
 	"testing"
 	"time"
 	"unsafe"
@@ -19,6 +20,38 @@ func TestToken_SigningString(t *testing.T) {
 		t.Errorf("Expected SigningString to return a non-empty byte slice")
 	}
 	t.Log(string(signingString))
+
+}
+
+func TestTokenEddsa(t *testing.T) {
+	payload := &Payload{
+		Issuer:   "darkie",
+		Subject:  "sub",
+		JWTID:    "jti",
+		IssuedAt: &JWTTime{time.Now()},
+	}
+	token := New(EDDSA, payload)
+
+	private, public, _ := GenerateEDDSARandom(cryptorand.Reader)
+
+	signedString, err := token.SignedEddsa(private, public)
+	if err != nil {
+		t.Errorf("Expected SignedEddsa to succeed, but got error: %v", err)
+	}
+	t.Log(signedString)
+
+	// getSignature := token.Signature()
+	// t.Log(string(getSignature))
+	//
+	// t.Log(string(token.BeforeSignature()))
+
+	verifier, err := token.VerifyEddsa(public)
+	if err != nil {
+		t.Errorf("Expected VerifyEddsa to succeed, but got error: %v", err)
+	}
+	if !verifier {
+		t.Errorf("Expected VerifyEddsa to return true, but got false")
+	}
 
 }
 

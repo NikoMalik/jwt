@@ -48,36 +48,27 @@ type PublicKeyEd struct {
 	public [publicKeyLen]byte
 }
 
-// func NewPrivateKey(privBytes []byte) *PrivateKeyEd {
-// 	if l := len(privBytes); l != 64 {
-// 		panic("ed25519: bad private key length: " + strconv.Itoa(l))
-// 	}
-// 	priv := PrivateKeyEd{}
-//
-// 	h := _sum512_(privBytes[:32])
-//
-// 	h[0] &= 248
-// 	h[31] &= 127
-// 	h[31] |= 64
-//
-// 	var hbytes = bufferPool.Get()
-//
-// 	res := *hbytes
-//
-// 	copy_AVX2_32(res[:32], h[:32])
-// 	s, err := priv.s.SetUniformBytes(res)
-// 	if err != nil {
-// 		panic("ed25519: internal error: setting scalar failed")
-// 	}
-//
-// 	A := new(edwards25519.Point).ScalarBaseMult(s)
-// 	Abytes := A.Bytes()
-//
-// 	copy_AVX2_32(priv.key[:32], privBytes[:32])
-// 	copy_AVX2_32(priv.key[32:], Abytes)
-//
-// 	return &priv
-// }
+func NewPrivateKey(privBytes [64]byte) *PrivateKeyEd {
+
+	priv := new(PrivateKeyEd)
+
+	h := _sum512_(privBytes[:32])
+	clamp(h[:])
+
+	s, err := priv.s.SetUniformBytes(h[:])
+	if err != nil {
+		panic("ed25519: internal error: setting scalar failed")
+	}
+
+	memcopy_avx2_32(unsafe.Pointer(&priv.prefix[0]), unsafe.Pointer(&h[0]))
+
+	A := (&edwards25519.Point{}).ScalarBaseMult(s)
+
+	memcopy_avx2_32(unsafe.Pointer(&priv.key[0]), unsafe.Pointer(&privBytes[32]))
+	memcopy_avx2_32(unsafe.Pointer(&priv.key[32]), unsafe.Pointer(&A.Bytes()[0]))
+
+	return priv
+}
 
 func NewPublicKey(pubBytes *[publicKeyLen]byte) *PublicKeyEd {
 

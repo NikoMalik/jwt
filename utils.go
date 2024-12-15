@@ -9,9 +9,6 @@ import (
 	lowlevelfunctions "github.com/NikoMalik/low-level-functions"
 )
 
-// Copyright 2014 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
 const (
 	alignment = 32
 	paramB    = 256 / 8
