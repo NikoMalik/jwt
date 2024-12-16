@@ -41,10 +41,10 @@ func (ap *Audience) MarshalJSON() ([]byte, error) {
 		return []byte("[]"), nil
 	case 1:
 
-		return sonic.Marshal(ap.Get()[0])
+		return sonic.ConfigFastest.Marshal(ap.Get()[0])
 	default:
 
-		return sonic.Marshal(ap.Get())
+		return sonic.ConfigFastest.Marshal(ap.Get())
 
 	}
 }
@@ -52,7 +52,7 @@ func (ap *Audience) MarshalJSON() ([]byte, error) {
 func (ap *Audience) UnmarshalJSON(data []byte) error {
 
 	var raw interface{}
-	if err := sonic.Unmarshal(data, &raw); err != nil {
+	if err := sonic.ConfigFastest.Unmarshal(data, &raw); err != nil {
 		return err
 	}
 

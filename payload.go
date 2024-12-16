@@ -140,71 +140,139 @@ func (p *Payload) IsIssuer(issuer string) bool { //iss
 	return constTimeEqual(p.Issuer, issuer)
 }
 
-func (p *Payload) MarshalJSON() []byte {
+func (p *Payload) MarshalJSON() ([]byte, error) {
 	buf := bufStringPool.Get()
+
 	buf.WriteString(`{`)
 
+	first := true
+
+	// Add "jti"
 	if p.JWTID != "" {
+		if !first {
+			buf.WriteString(`,`)
+		}
+		first = false
 		buf.WriteString(`"jti":"`)
 		buf.WriteString(p.JWTID)
-
+		buf.WriteString(`"`)
 	}
+
+	// Add "iss"
 	if p.Issuer != "" {
-		buf.WriteString(`","iss":"`)
+		if !first {
+			buf.WriteString(`,`)
+		}
+		first = false
+		buf.WriteString(`"iss":"`)
 		buf.WriteString(p.Issuer)
-
+		buf.WriteString(`"`)
 	}
+
+	// Add "sub"
 	if p.Subject != "" {
-		buf.WriteString(`","sub":"`)
+		if !first {
+			buf.WriteString(`,`)
+		}
+		first = false
+		buf.WriteString(`"sub":"`)
 		buf.WriteString(p.Subject)
-
+		buf.WriteString(`"`)
 	}
-	if p.Audience.aud != nil && p.Audience.lenAud > 0 {
-		buf.WriteString(`","aud":`)
-		if p.Audience.lenAud == 1 {
+
+	// Add "aud"
+	if p.Audience.aud != nil {
+		if !first {
+			buf.WriteString(`,`)
+		}
+		first = false
+		buf.WriteString(`"aud":`)
+		if p.Audience.lenAud == 0 {
+			buf.WriteString(`[]`)
+		} else if p.Audience.lenAud == 1 {
 			buf.WriteString(`"`)
 			buf.WriteString(p.Audience.Get()[0])
-			buf.WriteString(`",`)
+			buf.WriteString(`"`)
 		} else {
 			buf.WriteString(`[`)
-			for i := 0; i < p.Audience.lenAud; i++ {
+			for i, aud := range p.Audience.Get() {
 				if i > 0 {
 					buf.WriteString(`,`)
 				}
 				buf.WriteString(`"`)
-				buf.WriteString(p.Audience.Get()[i])
+				buf.WriteString(aud)
 				buf.WriteString(`"`)
 			}
-			buf.WriteString(`],`)
+			buf.WriteString(`]`)
 		}
 	}
+
 	if p.ExpirationTime != nil {
+		if !first {
+			buf.WriteString(`,`)
+		}
+		first = false
 		buf.WriteString(`"exp":"`)
-		buf.WriteString(p.ExpirationTime.Format(time.RFC3339)) // ISO 8601 format
-		buf.WriteString(`",`)
-	}
-	if p.NotBefore != nil {
-		buf.WriteString(`"nbf":"`)
-		buf.WriteString(p.NotBefore.Format(time.RFC3339))
-		buf.WriteString(`",`)
-	}
-	if p.IssuedAt != nil {
-		buf.WriteString(`"iat":"`)
-		buf.WriteString(p.IssuedAt.Format(time.RFC3339))
-		buf.WriteString(`",`)
+		buf.Write(p.ExpirationTime.GetTime())
+		buf.WriteString(`"`)
 	}
 
-	// // Remove trailing comma, if present
-	// if buf.Len() > 1 && buf.Bytes()[buf.Len()-1] == ',' {
-	// 	buf.Truncate(buf.Len() - 1)
-	// }
+	if p.NotBefore != nil {
+		if !first {
+			buf.WriteString(`,`)
+		}
+		first = false
+		buf.WriteString(`"nbf":"`)
+		buf.Write(p.NotBefore.GetTime())
+		buf.WriteString(`"`)
+	}
+
+	// Add "iat"
+	if p.IssuedAt != nil {
+		if !first {
+			buf.WriteString(`,`)
+		}
+		first = false
+		buf.WriteString(`"iat":"`)
+		buf.Write(p.IssuedAt.GetTime())
+		buf.WriteString(`"`)
+	}
 
 	buf.WriteString(`}`)
 	result := buf.Bytes()
+
 	buf.Reset()
 	bufStringPool.Put(buf)
 
-	return result
+	return result, nil
+}
+
+func (p *Payload) Marshal() ([]byte, error) {
+	type Alias Payload
+	return sonic.ConfigFastest.Marshal(&struct {
+		JWTTime        string   `json:"jti,omitempty"`
+		Issuer         string   `json:"iss,omitempty"`
+		Subject        string   `json:"sub,omitempty"`
+		Audience       Audience `json:"aud,omitempty"`
+		ExpirationTime string   `json:"exp,omitempty"`
+		NotBefore      string   `json:"nbf,omitempty"`
+		IssuedAt       string   `json:"iat,omitempty"`
+	}{
+		JWTTime:        p.JWTID,
+		Issuer:         p.Issuer,
+		Subject:        p.Subject,
+		Audience:       p.Audience,
+		ExpirationTime: formatTime(p.ExpirationTime),
+		NotBefore:      formatTime(p.NotBefore),
+		IssuedAt:       formatTime(p.IssuedAt),
+	})
+}
+
+func formatTime(t *JWTTime) string {
+	if t == nil {
+		return ""
+	}
+	return t.Format(time.RFC3339)
 }
 
 func truncate(buffer *lowlevelfunctions.StringBuffer, n int) {
@@ -216,21 +284,24 @@ func truncate(buffer *lowlevelfunctions.StringBuffer, n int) {
 }
 
 func unmarshalPayload(payload *Payload) []byte {
-	info, _ := sonic.Marshal(payload)
+	info, _ := payload.MarshalJSON()
 
 	buf := base64BufPool.Get()
 
 	encodedLen := base64EncodedLen(len(info))
-	token := *buf
+	// token := *buf
 	// if len(token) < encodedLen {
 	// 	token = alignSlice(encodedLen, 32)
 	// }
 
 	// encoded := alignSlice(base64EncodedLen(len(info)), 32)
 
-	base64Encode(token[:encodedLen], info)
+	base64Encode((*buf)[:encodedLen], info)
 
+	res := (*buf)[:encodedLen]
+
+	*buf = (*buf)[:0]
 	base64BufPool.Put(buf)
 
-	return token[:encodedLen]
+	return res
 }
