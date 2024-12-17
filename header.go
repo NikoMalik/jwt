@@ -1,7 +1,10 @@
 package jwt
 
 import (
+	"fmt"
+
 	lowlevelfunctions "github.com/NikoMalik/low-level-functions"
+	"github.com/bytedance/sonic"
 )
 
 //https://datatracker.ietf.org/doc/html/rfc7519#section-5
@@ -39,10 +42,11 @@ func (c Cyt) String() string {
 }
 
 const (
-	ContentTypeJWT    Cyt = 1
-	ContentTypeJWS    Cyt = 2
-	ContentTypeJSON   Cyt = 3
-	ContentTypeCustom Cyt = 4 //TODO hold custom content type
+	ContentTypeUnknown     = 0
+	ContentTypeJWT     Cyt = 1
+	ContentTypeJWS     Cyt = 2
+	ContentTypeJSON    Cyt = 3
+	ContentTypeCustom  Cyt = 4 //TODO hold custom content type
 )
 
 type Typ uint8
@@ -100,6 +104,68 @@ func (h *Header) MarshalJSON() []byte {
 	return byt
 }
 
+func (h *Header) UnmarshalJSON(b []byte) error {
+
+	var raw struct {
+		Algorithm   string `json:"alg,omitempty"`
+		Type        string `json:"typ,omitempty"`
+		ContentType string `json:"cty,omitempty"`
+		KeyID       []byte `json:"kid,omitempty"`
+	}
+
+	if err := sonic.ConfigFastest.Unmarshal(b, &raw); err != nil {
+		return fmt.Errorf("failed to unmarshal header: %w", err)
+	}
+
+	h.Algorithm = parseAlgorithm(raw.Algorithm)
+
+	h.Type = parseTyp(raw.Type)
+
+	h.ContentType = parseCyt(raw.ContentType)
+
+	if raw.KeyID != nil {
+		h.KeyID = make([]byte, len(raw.KeyID))
+		copy(h.KeyID, raw.KeyID)
+	}
+
+	return nil
+}
+
+func parseAlgorithm(alg string) Algorithm {
+	switch alg {
+	case "EDDSA":
+		return EDDSA
+
+	default:
+		return none
+	}
+}
+
+func parseTyp(typ string) Typ {
+	switch typ {
+	case "JWT":
+		return TypeJWT
+
+	default:
+		return TypeJWT
+	}
+}
+
+func parseCyt(cty string) Cyt {
+	switch cty {
+	case "application/jwt":
+		return ContentTypeJWT
+	case "application/jws":
+		return ContentTypeJWS
+	case "application/json":
+		return ContentTypeJSON
+	case "custom":
+		return ContentTypeCustom
+	default:
+		return ContentTypeUnknown
+	}
+}
+
 func unmarshalHeader(header *Header) []byte {
 	if header.Type == 0 {
 		header.Type = TypeJWT
@@ -124,16 +190,17 @@ func unmarshalHeader(header *Header) []byte {
 	info := header.MarshalJSON()
 	buf := base64BufPool.Get()
 
-	token := *buf
 	encodedLen := base64EncodedLen(len(info))
 
 	// encoded := alignSlice(base64EncodedLen(len(info)), 32) // // EncodedLen returns the length in bytes of the base64 encoding  of an input buffer of length n.
 
-	base64Encode(token[:encodedLen], info)
+	base64Encode((*buf)[:encodedLen], info)
+	res := (*buf)[:encodedLen]
+	*buf = (*buf)[:0]
 
 	base64BufPool.Put(buf)
 
-	return token[:encodedLen]
+	return res
 }
 
 var allocatedHeaders = map[Algorithm][]byte{

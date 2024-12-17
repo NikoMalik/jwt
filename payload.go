@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	"fmt"
 	"time"
 
 	lowlevelfunctions "github.com/NikoMalik/low-level-functions"
@@ -245,6 +246,43 @@ func (p *Payload) MarshalJSON() ([]byte, error) {
 	bufStringPool.Put(buf)
 
 	return result, nil
+}
+
+func (p *Payload) UnmarshalJSON(b []byte) error {
+	var raw struct {
+		JWTTime        string   `json:"jti,omitempty"`
+		Issuer         string   `json:"iss,omitempty"`
+		Subject        string   `json:"sub,omitempty"`
+		Audience       Audience `json:"aud,omitempty"`
+		ExpirationTime string   `json:"exp,omitempty"`
+		NotBefore      string   `json:"nbf,omitempty"`
+		IssuedAt       string   `json:"iat,omitempty"`
+	}
+
+	if err := sonic.ConfigFastest.Unmarshal(b, &raw); err != nil {
+		return fmt.Errorf("failed to unmarshal payload: %w", err)
+	}
+
+	p.JWTID = raw.JWTTime
+	p.Issuer = raw.Issuer
+	p.Subject = raw.Subject
+	p.Audience = raw.Audience
+
+	p.ExpirationTime = parseTime(raw.ExpirationTime)
+	p.NotBefore = parseTime(raw.NotBefore)
+	p.IssuedAt = parseTime(raw.IssuedAt)
+	return nil
+}
+
+func parseTime(s string) *JWTTime {
+	if s == "" {
+		return nil
+	}
+	t, err := time.Parse(time.UnixDate, s)
+	if err != nil {
+		return nil
+	}
+	return &JWTTime{t}
 }
 
 func (p *Payload) Marshal() ([]byte, error) {

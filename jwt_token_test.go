@@ -24,11 +24,16 @@ func TestToken_SigningString(t *testing.T) {
 }
 
 func TestTokenEddsa(t *testing.T) {
+	aud := Audience{
+		aud:    unsafe.Pointer(&[]string{"foo", "bar"}),
+		lenAud: 2,
+	}
 	payload := &Payload{
 		Issuer:   "darkie",
 		Subject:  "sub",
 		JWTID:    "jti",
 		IssuedAt: &JWTTime{time.Now()},
+		Audience: aud,
 	}
 	token := New(EDDSA, payload)
 

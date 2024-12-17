@@ -137,6 +137,10 @@ func base64Decode(dst, src []byte) (n int, err error) {
 	return base64.RawURLEncoding.Decode(dst, src)
 }
 
+func base64DecodeLen(n int) int {
+	return base64.RawURLEncoding.DecodedLen(n)
+}
+
 func base64EncodedLen(n int) int {
 	return base64.RawURLEncoding.EncodedLen(n)
 }

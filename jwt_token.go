@@ -110,7 +110,7 @@ func (t *Token[T]) SignedString(key []byte) (string, error) {
 	case EDDSA:
 
 		// TODO
-		// 1.MAKE VARIABLE DECLARATION FOR EDDSA without random
+		//
 		ss := *(*[]byte)(unsafe.Pointer(&sst))
 		private, public, _ := GenerateEDDSARandom(cryptorand.Reader)
 
@@ -157,17 +157,18 @@ func (t *Token[T]) SignedEddsa(privateKey *PrivateKeyEd, publicKey *PublicKeyEd)
 	}
 	t.signature = sig
 	buf := base64BufPool.Get()
-	tt := *buf
+
 	encodedLen := base64EncodedLen(len(sig))
-	tt = tt[:encodedLen] // dst := tt[:encodedlen]
-	base64Encode(tt, sig[:])
-	builder.Write(sst)
+	// tt = tt[:encodedLen] // dst := tt[:encodedlen]
+	base64Encode((*buf)[:encodedLen], sig[:])
+	builder.Write(sst) // header+payload
 	builder.WriteByte('.')
-	builder.Write(tt)
+	builder.Write((*buf)[:encodedLen])
 	t.raw = builder.Bytes()
 	signedString := builder.String()
 	builder.Reset()
 	bufStringPool.Put(builder)
+	*buf = (*buf)[:0]
 	base64BufPool.Put(buf)
 	return signedString, nil
 
