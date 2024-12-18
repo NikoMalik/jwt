@@ -285,34 +285,6 @@ func parseTime(s string) *JWTTime {
 	return &JWTTime{t}
 }
 
-func (p *Payload) Marshal() ([]byte, error) {
-	type Alias Payload
-	return sonic.ConfigFastest.Marshal(&struct {
-		JWTTime        string   `json:"jti,omitempty"`
-		Issuer         string   `json:"iss,omitempty"`
-		Subject        string   `json:"sub,omitempty"`
-		Audience       Audience `json:"aud,omitempty"`
-		ExpirationTime string   `json:"exp,omitempty"`
-		NotBefore      string   `json:"nbf,omitempty"`
-		IssuedAt       string   `json:"iat,omitempty"`
-	}{
-		JWTTime:        p.JWTID,
-		Issuer:         p.Issuer,
-		Subject:        p.Subject,
-		Audience:       p.Audience,
-		ExpirationTime: formatTime(p.ExpirationTime),
-		NotBefore:      formatTime(p.NotBefore),
-		IssuedAt:       formatTime(p.IssuedAt),
-	})
-}
-
-func formatTime(t *JWTTime) string {
-	if t == nil {
-		return ""
-	}
-	return t.Format(time.RFC3339)
-}
-
 func truncate(buffer *lowlevelfunctions.StringBuffer, n int) {
 	if n < 0 || n > buffer.Len() {
 		n = buffer.Len()
@@ -321,7 +293,22 @@ func truncate(buffer *lowlevelfunctions.StringBuffer, n int) {
 	buf = buf[:n]
 }
 
-func unmarshalPayload(payload *Payload) []byte {
+func unmarshalPayload(payload *Payload, algo Algorithm) []byte {
+
+	if payload == nil && algo == EDDSA {
+		// fmt.Println("triggered map for nil payload")
+		if kid, ok := allocatedNilPayload[EDDSA]; ok {
+			return kid
+		}
+
+	}
+	if *payload == (Payload{}) && algo == EDDSA {
+		// fmt.Println("triggered map for entry payload")
+		if kid, ok := allocatedNilPayload[EDDSA]; ok {
+			return kid
+		}
+	}
+
 	info, _ := payload.MarshalJSON()
 
 	buf := base64BufPool.Get()
@@ -342,4 +329,8 @@ func unmarshalPayload(payload *Payload) []byte {
 	base64BufPool.Put(buf)
 
 	return res
+}
+
+var allocatedNilPayload = map[Algorithm][]byte{
+	EDDSA: []byte{101, 51, 48},
 }

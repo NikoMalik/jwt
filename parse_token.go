@@ -5,6 +5,14 @@ import (
 	"fmt"
 )
 
+func ParseNoVerify(raw []byte) (*Token[any], error) {
+	return parse(raw, [64]byte{})
+}
+
+func ParseVerifySignature(raw []byte, signature [64]byte) (*Token[any], error) {
+	return parse(raw, signature)
+}
+
 func parse(raw []byte, signature [64]byte) (*Token[any], error) {
 	if !bytes.HasPrefix(raw, []byte("eyJ")) {
 		return nil, ErrInvalid

@@ -17,3 +17,12 @@ func TestUnmarshalPayload(t *testing.T) {
 	fmt.Println(string(must(payload.MarshalJSON())))
 
 }
+
+func TestPayloadNil(t *testing.T) {
+
+	predEddsa := unmarshalPayload(nil, EDDSA)
+	fmt.Println("preload for payload", predEddsa)
+
+	predEddsa2 := unmarshalPayload(&Payload{}, EDDSA)
+	fmt.Println("preload for payload", predEddsa2)
+}

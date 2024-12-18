@@ -85,7 +85,7 @@ func (t *Token[T]) SigningString() []byte {
 	builder.Write(unmarshalHeader(t.header))
 	t.sep1 = int32(builder.Len())
 	builder.WriteByte('.')
-	builder.Write(unmarshalPayload(t.payload))
+	builder.Write(unmarshalPayload(t.payload, t.header.Algorithm))
 	t.sep2 = int32(builder.Len())
 
 	signingBytes := builder.Bytes()
@@ -178,6 +178,9 @@ func (t *Token[T]) VerifyEddsa(public *PublicKeyEd) (bool, error) {
 	// if !t.valid {
 	// 	return false, ErrInvalid
 	// }
+	if public == nil {
+		return false, ErrNil
+	}
 
 	signingString := t.BeforeSignature()
 	// fmt.Println(string(signingString))

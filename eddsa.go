@@ -47,77 +47,6 @@ func NewEddsa(private *PrivateKeyEd, public *PublicKeyEd) (*_EDDSA, error) {
 
 }
 
-//
-// func NewEDDSA[T KeySource](keySource T) (*_EDDSA, error) {
-// 	var privKey PrivateKeyEd = alignSlice(privateKeyLen, 32)
-// 	if privKey == nil || len(privKey) == 0 {
-// 		return nil, ErrCannotGetObjFromPool
-// 	}
-//
-// 	switch v := any(keySource).(type) {
-//
-// 	case string:
-// 		if len(v) == 0 {
-// 			return nil, ErrSeedNil
-// 		}
-// 		if len(v)%2 != 0 {
-// 			return nil, fmt.Errorf("hex string has odd length: %v", len(v))
-// 		}
-//
-// 		decoded, err := hex.DecodeString(v)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		if len(decoded) == privateKeyLen {
-// 			privKey = *(*PrivateKeyEd)(unsafe.Pointer(&decoded))
-//
-// 		}
-//
-// 		if len(decoded) == seedLen {
-//
-// 			privKey = NewKeyFromSeed(decoded)
-//
-// 		} else {
-// 			return nil, ErrInvalidKeySize
-// 		}
-//
-// 	case []byte:
-//
-// 		// Treat byte slice as a private key or seed based on length
-// 		if len(v) == privateKeyLen {
-// 			privKey = *(*PrivateKeyEd)(unsafe.Pointer(&v))
-// 		} else if len(v) == seedLen {
-// 			privKey = NewKeyFromSeed(v)
-// 		} else {
-// 			return nil, fmt.Errorf("Invalid key length: %v", len(v))
-// 		}
-//
-// 	case [privateKeyLen]byte:
-// 		slice := *(*reflect.SliceHeader)(unsafe.Pointer(&v))
-// 		slice.Data = uintptr(unsafe.Pointer(&v))
-// 		slice.Len = privateKeyLen
-// 		slice.Cap = privateKeyLen
-//
-// 		privKey = *(*PrivateKeyEd)(unsafe.Pointer(&slice))
-// 	case *[privateKeyLen]byte: // pointer to private key
-//
-// 		slice := *(*reflect.SliceHeader)(unsafe.Pointer(&v))
-// 		slice.Data = uintptr(unsafe.Pointer(v))
-// 		slice.Len = privateKeyLen
-// 		slice.Cap = privateKeyLen
-//
-// 		privKey = *(*PrivateKeyEd)(unsafe.Pointer(&slice))
-//
-// 	default:
-// 		return nil, ErrInvalid
-// 	}
-//
-// 	return &_EDDSA{
-// 		PrivateKey: privKey,
-// 		PublicKey:  privKey.Public(),
-// 	}, nil
-// }
-
 func (e *_EDDSA) Sign(payload []byte) ([64]byte, error) {
 
 	if len(payload) == 0 {
@@ -129,6 +58,7 @@ func (e *_EDDSA) Sign(payload []byte) ([64]byte, error) {
 	signature := Sign(e.PrivateKey, payload, domPrefixPure, "")
 
 	return signature, nil // return sign
+
 }
 func (e *_EDDSA) Verify(payload []byte, sig []byte) bool { // need sign
 	if payload == nil || len(payload) == 0 {

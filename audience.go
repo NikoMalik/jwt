@@ -12,9 +12,9 @@ type Audience struct {
 	lenAud int            // Number of elements in the slice
 }
 
-func NewAudience(aud []string) *Audience {
+func NewAudience(aud []string) Audience {
 	// Store reference to the string array as unsafe.Pointer
-	return &Audience{
+	return Audience{
 		aud:    unsafe.Pointer(&aud),
 		lenAud: len(aud),
 	}
