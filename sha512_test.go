@@ -40,3 +40,21 @@ func TestArtem(t *testing.T) {
 
 	fmt.Printf("\nSignature: %s", hex.EncodeToString(res2[:]))
 }
+
+func BenchmarkSha512(b *testing.B) {
+
+	name := "artem"
+
+	data := []byte(name)
+
+	b.Run("default sha512", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			sha512.Sum512(data)
+		}
+	})
+	b.Run("sum512", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_sum512_(data)
+		}
+	})
+}

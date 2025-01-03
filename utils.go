@@ -119,7 +119,7 @@ var (
 
 //go:nosplit
 //go:noinline
-func clamp(k []byte) {
+func clamp(k *[64]byte) {
 	k[0] &= 248
 	k[paramB-1] = (k[paramB-1] & 127) | 64
 }
@@ -393,9 +393,23 @@ func alignGeneric[T any](size int, alignment int) []T {
 
 	return buf[alignment-offset : alignment-offset+size]
 }
+
 func BePutUint64(b []byte, v uint64) {
 
 	_ = b[7] // early bounds check to guarantee safety of writes below
+	b[0] = byte(v >> 56)
+	b[1] = byte(v >> 48)
+	b[2] = byte(v >> 40)
+	b[3] = byte(v >> 32)
+	b[4] = byte(v >> 24)
+	b[5] = byte(v >> 16)
+	b[6] = byte(v >> 8)
+	b[7] = byte(v)
+}
+
+func _putuint64(p unsafe.Pointer, v uint64) {
+	b := (*[8]byte)(p)
+
 	b[0] = byte(v >> 56)
 	b[1] = byte(v >> 48)
 	b[2] = byte(v >> 40)

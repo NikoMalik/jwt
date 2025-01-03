@@ -4,7 +4,7 @@ go 1.23.2
 
 require (
 	filippo.io/edwards25519 v1.1.0
-	github.com/NikoMalik/low-level-functions v0.0.0-20240901193851-bacb16a60764
+	github.com/NikoMalik/low-level-functions v0.0.0-20241228222801-8efb763e6683
 	golang.org/x/sys v0.27.0
 )
 

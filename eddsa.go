@@ -87,7 +87,6 @@ func GenerateEDDSARandom(rand io.Reader) (*PrivateKeyEd, *PublicKeyEd, error) {
 	}
 
 	var seed [32]byte
-
 	if _, err := io.ReadFull(rand, seed[:]); err != nil {
 		return nil, nil, err
 	}

@@ -53,7 +53,7 @@ func NewPrivateKey(privBytes [64]byte) *PrivateKeyEd {
 	priv := new(PrivateKeyEd)
 
 	h := _sum512_(privBytes[:32])
-	clamp(h[:])
+	clamp(&h)
 
 	s, err := priv.s.SetUniformBytes(h[:])
 	if err != nil {
@@ -101,7 +101,7 @@ func NewKeyFromSeed(seed [32]byte) *PrivateKeyEd {
 func newKeyFromSeed(privateKey *PrivateKeyEd, seed *[seedLen]byte) {
 
 	h := _sum512_(seed[:])
-	clamp(h[:])
+	clamp(&h)
 	// reduceModOrder(h[:], false)
 
 	// h[0] &= 248
